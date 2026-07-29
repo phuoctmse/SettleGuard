@@ -1,0 +1,84 @@
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Go ---
+# Build artifacts / binaries (per-service cmd/server output, etc.)
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace / module cache leftovers
+go.work
+go.work.sum
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+pip-wheel-metadata/
+
+# --- Node / React Native (mobile-app) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.expo/
+.expo-shared/
+*.jsbundle
+
+# iOS
+mobile-app/ios/Pods/
+mobile-app/ios/build/
+*.xcworkspace
+*.xcuserstate
+
+# Android
+mobile-app/android/.gradle/
+mobile-app/android/app/build/
+mobile-app/android/build/
+*.keystore
+!debug.keystore
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Terraform (infra/terraform) ---
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# --- Misc ---
+*.log
+.coverage
+coverage.out
+
+# --- Claude Code (personal overrides; .claude/settings.json itself is checked in) ---
+.claude/settings.local.json
