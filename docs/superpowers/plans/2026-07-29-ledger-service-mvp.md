@@ -25,7 +25,7 @@
 - Create: `services/ledger-service/.gitignore`
 - Create directories: `services/ledger-service/cmd/server/`, `services/ledger-service/internal/api/`, `services/ledger-service/internal/db/migrations/`, `services/ledger-service/internal/ledger/`, `services/ledger-service/internal/testutil/`
 
-- [ ] **Step 1: Create the directory skeleton**
+- [X] **Step 1: Create the directory skeleton**
 
 Run:
 ```bash
@@ -36,7 +36,7 @@ mkdir -p services/ledger-service/internal/ledger
 mkdir -p services/ledger-service/internal/testutil
 ```
 
-- [ ] **Step 2: Initialize the Go module**
+- [X] **Step 2: Initialize the Go module**
 
 Run:
 ```bash
@@ -44,7 +44,7 @@ cd services/ledger-service && go mod init github.com/phuoctmse/settleguard/ledge
 ```
 Expected: creates `services/ledger-service/go.mod` containing `module github.com/phuoctmse/settleguard/ledger-service` and a `go 1.23` (or later) directive.
 
-- [ ] **Step 3: Add dependencies**
+- [X] **Step 3: Add dependencies**
 
 Run (from `services/ledger-service/`):
 ```bash
@@ -57,7 +57,7 @@ go get github.com/testcontainers/testcontainers-go
 ```
 Expected: `go.mod` gains `require` entries for each module; `go.sum` is created.
 
-- [ ] **Step 4: Add `.gitignore`**
+- [X] **Step 4: Add `.gitignore`**
 
 `services/ledger-service/.gitignore`:
 ```
@@ -65,7 +65,7 @@ Expected: `go.mod` gains `require` entries for each module; `go.sum` is created.
 *.test
 ```
 
-- [ ] **Step 5: Commit**
+- [X] **Step 5: Commit**
 
 ```bash
 git add services/ledger-service/go.mod services/ledger-service/go.sum services/ledger-service/.gitignore
@@ -80,7 +80,7 @@ git commit -m "chore(ledger-service): initialize Go module and dependencies"
 - Create: `services/ledger-service/internal/ledger/entry.go`
 - Test: `services/ledger-service/internal/ledger/entry_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [X] **Step 1: Write the failing test**
 
 `services/ledger-service/internal/ledger/entry_test.go`:
 ```go
@@ -154,12 +154,12 @@ func TestValidateBalanced(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [X] **Step 2: Run test to verify it fails**
 
 Run: `cd services/ledger-service && go test ./internal/ledger/... -v`
 Expected: FAIL — compile error, `ledger.Entry`, `ledger.Direction`, `ledger.ValidateBalanced` etc. undefined.
 
-- [ ] **Step 3: Write the implementation**
+- [X] **Step 3: Write the implementation**
 
 `services/ledger-service/internal/ledger/entry.go`:
 ```go
@@ -226,12 +226,12 @@ func ValidateBalanced(entries []Entry) error {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [X] **Step 4: Run test to verify it passes**
 
 Run: `cd services/ledger-service && go test ./internal/ledger/... -v`
 Expected: PASS — all 5 subtests pass.
 
-- [ ] **Step 5: Commit**
+- [X] **Step 5: Commit**
 
 ```bash
 git add services/ledger-service/internal/ledger/entry.go services/ledger-service/internal/ledger/entry_test.go
@@ -246,14 +246,12 @@ git commit -m "feat(ledger-service): add ledger entry domain model and balance v
 - Create: `services/ledger-service/internal/db/migrations/000001_create_ledger_entries.up.sql`
 - Create: `services/ledger-service/internal/db/migrations/000001_create_ledger_entries.down.sql`
 
-- [ ] **Step 1: Write the up migration**
+- [X] **Step 1: Write the up migration**
 
 `services/ledger-service/internal/db/migrations/000001_create_ledger_entries.up.sql`:
 ```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 CREATE TABLE ledger_entries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     transaction_id UUID NOT NULL,
     account_id UUID NOT NULL,
     direction TEXT NOT NULL CHECK (direction IN ('debit', 'credit')),
@@ -266,14 +264,16 @@ CREATE INDEX idx_ledger_entries_transaction_id ON ledger_entries (transaction_id
 CREATE INDEX idx_ledger_entries_account_id ON ledger_entries (account_id);
 ```
 
-- [ ] **Step 2: Write the down migration**
+Postgres 18 has `gen_random_uuid()` built into core (no `pgcrypto` extension needed — that was only required pre-13). It's dropped here entirely rather than just de-extensioned: the repository (Task 5) always sets `e.ID = uuid.New()` in Go before inserting, so the DB-side default would never actually run — keeping it would be dead code with no caller.
+
+- [X] **Step 2: Write the down migration**
 
 `services/ledger-service/internal/db/migrations/000001_create_ledger_entries.down.sql`:
 ```sql
 DROP TABLE IF EXISTS ledger_entries;
 ```
 
-- [ ] **Step 3: Commit**
+- [X] **Step 3: Commit**
 
 ```bash
 git add services/ledger-service/internal/db/migrations
