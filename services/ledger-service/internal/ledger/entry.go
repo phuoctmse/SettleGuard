@@ -15,13 +15,13 @@ const (
 )
 
 type Entry struct {
-	ID          uuid.UUID
-	Transaction uuid.UUID
-	AccountID   uuid.UUID
-	Direction   Direction
-	Amount      int64
-	Reason      string
-	CreatedAt   time.Time
+	ID            uuid.UUID
+	TransactionID uuid.UUID
+	AccountID     uuid.UUID
+	Direction     Direction
+	Amount        int64
+	Reason        string
+	CreatedAt     time.Time
 }
 
 var (

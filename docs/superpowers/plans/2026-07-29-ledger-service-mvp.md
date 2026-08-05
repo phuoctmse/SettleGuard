@@ -291,7 +291,7 @@ git commit -m "feat(ledger-service): add ledger_entries table migration"
 - Create: `services/ledger-service/internal/testutil/postgres.go`
 - Test: `services/ledger-service/internal/db/db_test.go`
 
-- [ ] **Step 1: Write the test DB helper (used by this and later tasks)**
+- [X] **Step 1: Write the test DB helper (used by this and later tasks)**
 
 `services/ledger-service/internal/testutil/postgres.go`:
 ```go
@@ -365,7 +365,7 @@ func NewTestDB(t *testing.T) *sql.DB {
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [X] **Step 2: Write the failing test**
 
 `services/ledger-service/internal/db/db_test.go`:
 ```go
@@ -395,12 +395,12 @@ func TestMigrate_CreatesLedgerEntriesTable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [X] **Step 3: Run test to verify it fails**
 
 Run: `cd services/ledger-service && go test ./internal/db/... -v`
 Expected: FAIL — compile error, `db.Connect` and `db.Migrate` undefined.
 
-- [ ] **Step 4: Write the implementation**
+- [X] **Step 4: Write the implementation**
 
 `services/ledger-service/internal/db/db.go`:
 ```go
@@ -456,12 +456,12 @@ func Migrate(conn *sql.DB) error {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [X] **Step 5: Run test to verify it passes**
 
 Run: `cd services/ledger-service && go test ./internal/db/... -v`
 Expected: PASS — `TestMigrate_CreatesLedgerEntriesTable` passes (requires Docker running).
 
-- [ ] **Step 6: Commit**
+- [X] **Step 6: Commit**
 
 ```bash
 git add services/ledger-service/internal/db/db.go services/ledger-service/internal/db/db_test.go services/ledger-service/internal/testutil/postgres.go
@@ -476,7 +476,7 @@ git commit -m "feat(ledger-service): add Postgres connection and migration runne
 - Create: `services/ledger-service/internal/ledger/repository.go`
 - Test: `services/ledger-service/internal/ledger/repository_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [X] **Step 1: Write the failing test**
 
 `services/ledger-service/internal/ledger/repository_test.go`:
 ```go
@@ -540,12 +540,12 @@ func TestRepository_InsertTransaction_RejectsUnbalanced(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [X] **Step 2: Run test to verify it fails**
 
 Run: `cd services/ledger-service && go test ./internal/ledger/... -run TestRepository -v`
 Expected: FAIL — compile error, `ledger.NewRepository` undefined.
 
-- [ ] **Step 3: Write the implementation**
+- [X] **Step 3: Write the implementation**
 
 `services/ledger-service/internal/ledger/repository.go`:
 ```go
@@ -642,12 +642,12 @@ func (r *Repository) query(ctx context.Context, q string, arg uuid.UUID) ([]Entr
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [X] **Step 4: Run test to verify it passes**
 
 Run: `cd services/ledger-service && go test ./internal/ledger/... -v`
 Expected: PASS — all tests in the `ledger` package pass (requires Docker running).
 
-- [ ] **Step 5: Commit**
+- [X] **Step 5: Commit**
 
 ```bash
 git add services/ledger-service/internal/ledger/repository.go services/ledger-service/internal/ledger/repository_test.go

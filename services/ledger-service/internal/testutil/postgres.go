@@ -11,6 +11,9 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// NewTestDB starts a throwaway Postgres container, runs all migrations
+// against it, and returns a connected *sql.DB. The container and connection
+// are torn down automatically when the test completes
 func NewTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
