@@ -11,7 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_InsertAndListTransaction(t *testing.T) {
+func insertTestTransaction(t *testing.T, repo *ledger.Repository, entries []ledger.Entry) (uuid.UUID, []ledger.Entry) {
+	t.Helper()
+	txID := uuid.New()
+	inserted, err := repo.InsertTransaction(context.Background(), txID, entries)
+	require.NoError(t, err)
+
+	return txID, inserted
+}
+
+func TestRepository_InsertTransaction(t *testing.T) {
 	conn := testutil.NewTestDB(t)
 	repo := ledger.NewRepository(conn)
 
@@ -31,10 +40,41 @@ func TestRepository_InsertAndListTransaction(t *testing.T) {
 		assert.Equal(t, txID, e.TransactionID)
 		assert.NotEqual(t, uuid.Nil, e.ID)
 	}
+}
+
+func TestRepository_ListByAccount(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+
+	accountA := uuid.New()
+	accountB := uuid.New()
+
+	entries := []ledger.Entry{
+		{AccountID: accountA, Direction: ledger.Debit, Amount: 1000, Reason: "payout"},
+		{AccountID: accountB, Direction: ledger.Credit, Amount: 1000, Reason: "payout"},
+	}
+
+	insertTestTransaction(t, repo, entries)
+
 	byAccount, err := repo.ListByAccount(context.Background(), accountA)
 	require.NoError(t, err)
 	require.Len(t, byAccount, 1)
 	assert.Equal(t, accountA, byAccount[0].AccountID)
+}
+
+func TestRepository_ListByTransaction(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+
+	accountA := uuid.New()
+	accountB := uuid.New()
+
+	entries := []ledger.Entry{
+		{AccountID: accountA, Direction: ledger.Debit, Amount: 1000, Reason: "payout"},
+		{AccountID: accountB, Direction: ledger.Credit, Amount: 1000, Reason: "payout"},
+	}
+
+	txID, _ := insertTestTransaction(t, repo, entries)
 
 	byTransaction, err := repo.ListByTransaction(context.Background(), txID)
 	require.NoError(t, err)
