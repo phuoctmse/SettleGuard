@@ -1036,7 +1036,7 @@ git commit -m "feat(ledger-service): wire up main entrypoint"
 - Create: `services/ledger-service/README.md`
 - Modify: `CLAUDE.md` (root)
 
-- [ ] **Step 1: Write the service README**
+- [X] **Step 1: Write the service README**
 
 `services/ledger-service/README.md`:
 ```markdown
@@ -1092,7 +1092,7 @@ go test ./internal/ledger/... -run TestValidateBalanced -v
 - `GET /entries?account_id=<uuid>` or `GET /entries?transaction_id=<uuid>` — list entries.
 ```
 
-- [ ] **Step 2: Update root CLAUDE.md**
+- [X] **Step 2: Update root CLAUDE.md**
 
 In `CLAUDE.md`, replace the "Project Status" section (which currently says no service has been implemented) with:
 
