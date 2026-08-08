@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # I = isort-style import grouping/sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["notification_service"]

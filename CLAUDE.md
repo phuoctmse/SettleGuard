@@ -89,6 +89,10 @@ Transaction, RiskScore, Settlement (batch), Alert/Notification.
   - Appium (`Appium-Python-Client`) for mobile E2E against `mobile-app`
 - **Postgres** — one instance/schema per service that needs persistence
   (ledger-service, accounts-service at minimum). No shared schema.
+
+Naming/formatting and error-handling conventions for both languages:
+`docs/CODING_STANDARDS.md`.
+
 ## AI Usage — Justification Required
  
 Every AI-driven feature in this project must have a concrete business

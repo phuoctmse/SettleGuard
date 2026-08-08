@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck    # never silently drop an error (docs/CODING_STANDARDS.md)
+    - govet
+    - staticcheck
+    - unused
+    - revive       # naming: AccountID not AccountId, exported doc comments
+    - gofmt
+    - goimports
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/phuoctmse/settleguard
+  revive:
+    rules:
+      - name: var-naming
+      - name: error-naming
+      - name: exported
+
+issues:
+  exclude-use-default: false
