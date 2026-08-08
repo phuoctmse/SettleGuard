@@ -142,5 +142,10 @@ reviewed and functional):
 - Merge to `main` via **squash merge**, not a merge commit — this collapses
   the branch's messy commit history into one clean commit per service/step
   on `main`
+- Before merging to `main`, run `/code-review` (or `/security-review` for
+  changes touching money-adjacent logic — ledger-service, accounts-service,
+  settlement-engine) and address findings. PR #1 merged with zero review
+  comments in under a minute; this step exists specifically to not repeat
+  that.
 - Delete the branch after merge
 - `main` should always be in a working state — nothing half-finished merged in
