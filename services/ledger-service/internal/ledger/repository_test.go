@@ -2,6 +2,7 @@ package ledger_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -92,4 +93,37 @@ func TestRepository_InsertTransaction_RejectsUnbalanced(t *testing.T) {
 
 	_, err := repo.InsertTransaction(context.Background(), uuid.New(), entries)
 	assert.ErrorIs(t, err, ledger.ErrUnbalancedTransaction)
+}
+
+func TestRepository_InsertTransaction_ConcurrentSameAccount(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+
+	const goroutines = 20
+	target := uuid.New()
+
+	var wg sync.WaitGroup
+	errs := make(chan error, goroutines)
+
+	for range goroutines {
+		wg.Go(func() {
+			entries := []ledger.Entry{
+				{AccountID: target, Direction: ledger.Debit, Amount: 100, Reason: "concurrent"},
+				{AccountID: uuid.New(), Direction: ledger.Credit, Amount: 100, Reason: "concurrent"},
+			}
+			_, err := repo.InsertTransaction(context.Background(), uuid.New(), entries)
+			errs <- err
+		})
+	}
+
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	byAccount, err := repo.ListByAccount(context.Background(), target)
+	require.NoError(t, err)
+	assert.Len(t, byAccount, goroutines)
 }
