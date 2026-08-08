@@ -663,7 +663,7 @@ git commit -m "feat(ledger-service): add Postgres-backed ledger repository"
 - Create: `services/ledger-service/internal/api/router.go`
 - Test: `services/ledger-service/internal/api/handlers_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [X] **Step 1: Write the failing test**
 
 `services/ledger-service/internal/api/handlers_test.go`:
 ```go
@@ -759,12 +759,12 @@ func TestListEntries_RequiresQueryParam(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [X] **Step 2: Run test to verify it fails**
 
 Run: `cd services/ledger-service && go test ./internal/api/... -v`
 Expected: FAIL — compile error, `api.NewHandlers`, `api.NewRouter` undefined.
 
-- [ ] **Step 3: Write the handlers implementation**
+- [X] **Step 3: Write the handlers implementation**
 
 `services/ledger-service/internal/api/handlers.go`:
 ```go
@@ -918,7 +918,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 ```
 
-- [ ] **Step 4: Write the router implementation**
+- [X] **Step 4: Write the router implementation**
 
 `services/ledger-service/internal/api/router.go`:
 ```go
@@ -944,12 +944,12 @@ func NewRouter(h *Handlers) http.Handler {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [X] **Step 5: Run test to verify it passes**
 
 Run: `cd services/ledger-service && go test ./internal/api/... -v`
 Expected: PASS — all 3 tests pass (requires Docker running).
 
-- [ ] **Step 6: Commit**
+- [X] **Step 6: Commit**
 
 ```bash
 git add services/ledger-service/internal/api/handlers.go services/ledger-service/internal/api/router.go services/ledger-service/internal/api/handlers_test.go
@@ -963,7 +963,7 @@ git commit -m "feat(ledger-service): add HTTP API for creating and listing ledge
 **Files:**
 - Create: `services/ledger-service/cmd/server/main.go`
 
-- [ ] **Step 1: Write main.go**
+- [X] **Step 1: Write main.go**
 
 `services/ledger-service/cmd/server/main.go`:
 ```go
@@ -1011,17 +1011,17 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: Verify the whole module builds**
+- [X] **Step 2: Verify the whole module builds**
 
 Run: `cd services/ledger-service && go build ./...`
 Expected: exits with no output and status 0.
 
-- [ ] **Step 3: Verify all tests still pass**
+- [X] **Step 3: Verify all tests still pass**
 
 Run: `cd services/ledger-service && go vet ./... && go test ./... -v`
 Expected: `go vet` produces no output; all tests across `internal/ledger`, `internal/db`, and `internal/api` PASS (requires Docker running).
 
-- [ ] **Step 4: Commit**
+- [X] **Step 4: Commit**
 
 ```bash
 git add services/ledger-service/cmd/server/main.go
