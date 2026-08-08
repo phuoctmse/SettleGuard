@@ -1,128 +1,140 @@
-# SettleGuard Project Charter — Design
+# SettleGuard Project Charter — Thiết kế
 
-Date: 2026-07-29
-Status: Approved (pending final spec review)
+Ngày: 2026-07-29
+Trạng thái: Đã duyệt (đang chờ review spec cuối cùng)
 
-## 1. Vision & Scope
+## 1. Tầm nhìn & Phạm vi
 
-**SettleGuard** is a B2B platform that tracks and settles financial obligations
-between parties on top of external payment rails — it never moves real money
-itself — while actively guarding the settlement process with rule-based and
-ML-based risk scoring. Client businesses integrate via API to settle
-payments/payouts between their own users. SettleGuard's own mobile app lets
-end-users (or the client's ops team) track settlement status and see
-fraud/risk alerts in real time.
+**SettleGuard** là một nền tảng B2B theo dõi và tất toán (settle) các nghĩa vụ
+tài chính giữa các bên, dựa trên hạ tầng thanh toán bên ngoài (external
+payment rails) — bản thân nó không bao giờ di chuyển tiền thật — đồng thời
+chủ động giám sát quá trình tất toán bằng chấm điểm rủi ro (risk scoring) dựa
+trên rule và ML. Các doanh nghiệp khách hàng tích hợp qua API để tất toán
+payment/payout giữa người dùng của chính họ. Ứng dụng di động riêng của
+SettleGuard cho phép end-user (hoặc đội vận hành của khách hàng) theo dõi
+trạng thái tất toán và xem cảnh báo gian lận/rủi ro theo thời gian thực.
 
-### In scope (v1)
+### Trong phạm vi (v1)
 
-- Single-currency obligation tracking and settlement (accounts, ledger,
-  settlement-engine)
-- Real-time rule + ML risk scoring on transactions as they arrive
-- Batched settlement runs that finalize risk-cleared obligations
-- Notifications (push/email) for settlement events and risk holds
-- Mobile app for settlement/alert visibility
-- Cloud deployment (Kubernetes + Terraform)
+- Theo dõi và tất toán nghĩa vụ đơn tiền tệ (single-currency) (accounts,
+  ledger, settlement-engine)
+- Chấm điểm rủi ro theo rule + ML theo thời gian thực khi giao dịch phát sinh
+- Các đợt tất toán theo lô (batch), hoàn tất các nghĩa vụ đã được xác định
+  là không rủi ro (risk-cleared)
+- Thông báo (push/email) cho các sự kiện tất toán và các trường hợp bị giữ
+  lại do rủi ro (risk hold)
+- Ứng dụng di động để xem trạng thái tất toán/cảnh báo
+- Triển khai trên cloud (Kubernetes + Terraform)
 
-### Out of scope (v1) — explicit non-goals
+### Ngoài phạm vi (v1) — các mục tiêu không hướng tới, nêu rõ
 
-- Direct movement of real funds (no custody, no payout execution — delegated
-  to an external payment processor)
-- Multi-currency / FX
-- On-premise deployment
+- Di chuyển tiền thật trực tiếp (không giữ tiền/custody, không thực thi
+  payout — việc này giao cho một payment processor bên ngoài)
+- Đa tiền tệ / FX
+- Triển khai on-premise
 
-## 2. Architecture & Domain Model
+## 2. Kiến trúc & Mô hình miền (Domain Model)
 
-### Services (event-driven core)
+### Các service (lõi hướng sự kiện — event-driven)
 
-- **accounts-service** (Go) — owns party/account identity, balances-of-obligation
-  (not real money), and account status. Publishes `account.updated` events.
-- **ledger-service** (Go) — the append-only source of truth for every
-  obligation entry (double-entry style: who owes whom, why, current state).
-  Publishes `ledger.entry-recorded` events. Postgres-backed.
-- **settlement-engine** (Go) — the core orchestrator. Consumes ledger events,
-  runs real-time rule + ML risk scoring per transaction, publishes
-  `transaction.risk-scored` events (carrying score + hold/clear decision). On
-  a schedule, batches all cleared entries since the last run into a
-  settlement, publishing `settlement.finalized` or
-  `settlement.held-for-review` events.
-- **notification-service** (Python) — subscribes to risk-hold and
-  settlement-finalized events; sends push/email alerts to the mobile app
-  and/or client webhooks. Never called synchronously by other services.
+- **accounts-service** (Go) — sở hữu định danh party/account, số dư nghĩa vụ
+  (balances-of-obligation, không phải tiền thật), và trạng thái account.
+  Phát sinh (publish) sự kiện `account.updated`.
+- **ledger-service** (Go) — nguồn sự thật duy nhất, chỉ-ghi-thêm
+  (append-only) cho mọi bút toán nghĩa vụ (kiểu double-entry: ai nợ ai, vì
+  sao, trạng thái hiện tại). Phát sinh sự kiện `ledger.entry-recorded`. Dùng
+  Postgres.
+- **settlement-engine** (Go) — bộ điều phối trung tâm (core orchestrator).
+  Tiêu thụ (consume) sự kiện từ ledger, chạy chấm điểm rủi ro theo rule + ML
+  theo thời gian thực cho từng giao dịch, phát sinh sự kiện
+  `transaction.risk-scored` (mang theo điểm số + quyết định giữ lại/thông
+  qua). Theo lịch định kỳ, gom tất cả các bút toán đã được thông qua kể từ
+  lần chạy trước thành một đợt tất toán (settlement), phát sinh sự kiện
+  `settlement.finalized` hoặc `settlement.held-for-review`.
+- **notification-service** (Python) — subscribe vào các sự kiện risk-hold và
+  settlement-finalized; gửi cảnh báo push/email tới ứng dụng di động và/hoặc
+  webhook của khách hàng. Không bao giờ được gọi đồng bộ (synchronously) bởi
+  service khác.
 
-### Data ownership
+### Quyền sở hữu dữ liệu (Data ownership)
 
-Each service owns its own schema; no cross-service direct database access.
-Postgres is used by services that need persistence (at minimum ledger-service
-and accounts-service).
+Mỗi service sở hữu schema riêng của nó; không service nào được truy cập
+trực tiếp database của service khác. Postgres được dùng cho các service cần
+lưu trữ dữ liệu (tối thiểu là ledger-service và accounts-service).
 
 ### Event bus
 
-An event broker (exact technology, e.g. Kafka or a managed equivalent, is an
-implementation-plan decision, not a charter decision) is the backbone
-connecting the four services. This is what makes the real-time-scoring +
-batched-settlement hybrid work naturally: scoring reacts continuously to a
-stream of transactions, and settlement periodically drains a window of
-risk-cleared entries from that same stream.
+Một event broker (công nghệ cụ thể, ví dụ Kafka hoặc dịch vụ quản lý tương
+đương, là quyết định thuộc về implementation plan, không phải quyết định ở
+tầng charter) là trục xương sống kết nối bốn service. Đây chính là yếu tố
+giúp mô hình lai giữa chấm điểm thời gian thực và tất toán theo lô hoạt động
+tự nhiên: việc chấm điểm phản ứng liên tục với luồng giao dịch, còn tất toán
+định kỳ "rút" ra một cửa sổ (window) các bút toán đã được thông qua từ chính
+luồng đó.
 
-### Key domain entities
+### Các thực thể miền (domain entities) chính
 
 Account, LedgerEntry, Transaction, RiskScore, Settlement (batch),
 Alert/Notification.
 
-### Mobile app (React Native)
+### Ứng dụng di động (React Native)
 
-Talks to accounts/ledger/settlement-engine via a read-oriented API (fronted
-by a gateway or served directly by settlement-engine — an implementation-plan
-decision) and receives push notifications from notification-service. The
-mobile app is never a source of truth for domain data.
+Giao tiếp với accounts/ledger/settlement-engine qua một API hướng đọc
+(read-oriented) (có thể đứng sau một gateway hoặc do settlement-engine phục
+vụ trực tiếp — đây là quyết định thuộc về implementation plan) và nhận push
+notification từ notification-service. Ứng dụng di động không bao giờ là
+nguồn sự thật (source of truth) cho dữ liệu miền.
 
-## 3. Testing, Tooling & Success Criteria
+## 3. Testing, Tooling & Tiêu chí thành công
 
-### Test layout (matches existing `tests/` skeleton)
+### Cấu trúc test (khớp với khung `tests/` hiện có)
 
-- `tests/api` — cross-service API/contract tests (Python), run against the
-  OpenAPI spec (to be written per-service as a follow-up to this charter)
-- `tests/security` — security-focused tests (fraud-bypass attempts, auth
-  boundary checks)
-- `tests/perf` — load/perf tests for settlement-engine's real-time scoring
-  path and batch settlement throughput
-- `tests/ai-tools` — Python tooling for AI-assisted test generation and CI
-  failure triage (distinct from the risk-scoring ML model itself, which
-  lives inside settlement-engine)
+- `tests/api` — test API/contract liên service (Python), chạy dựa trên
+  OpenAPI spec (sẽ được viết cho từng service như một bước tiếp theo sau
+  charter này)
+- `tests/security` — test tập trung vào bảo mật (thử bypass gian lận, kiểm
+  tra ranh giới xác thực/phân quyền)
+- `tests/perf` — test tải/hiệu năng cho đường chấm điểm thời gian thực của
+  settlement-engine và thông lượng tất toán theo lô
+- `tests/ai-tools` — tooling Python hỗ trợ AI để sinh test case và phân
+  loại (triage) lỗi CI (khác với chính mô hình ML chấm điểm rủi ro, vốn nằm
+  bên trong settlement-engine)
 
-### Mobile testing
+### Testing cho mobile
 
-Appium (Python client) drives the React Native app for end-to-end tests.
+Appium (Python client) điều khiển ứng dụng React Native để chạy test
+end-to-end.
 
-### Success criteria for v1
+### Tiêu chí thành công cho v1
 
-- A transaction flows end-to-end: recorded in ledger → risk-scored in real
-  time → included in the next batch settlement (or held) → notification sent
-- Held/flagged transactions are visible and actionable (approve/reject) from
-  the mobile app
-- All four services are independently deployable via Kubernetes manifests
-  generated from Terraform-provisioned infrastructure
+- Một giao dịch chạy trọn vẹn từ đầu đến cuối: được ghi vào ledger → được
+  chấm điểm rủi ro theo thời gian thực → được đưa vào đợt tất toán theo lô
+  tiếp theo (hoặc bị giữ lại) → gửi thông báo
+- Các giao dịch bị giữ lại/gắn cờ được hiển thị và có thể thao tác được
+  (approve/reject) từ ứng dụng di động
+- Cả bốn service đều có thể triển khai độc lập qua Kubernetes manifest được
+  sinh ra từ hạ tầng do Terraform cấp phát
 
-## 4. Tech Stack Summary
+## 4. Tóm tắt Tech Stack
 
-| Component            | Stack                                   |
-|-----------------------|------------------------------------------|
-| accounts-service      | Go, Postgres                             |
-| ledger-service        | Go, Postgres                             |
-| settlement-engine     | Go, Postgres (or event-store), ML scoring model |
-| notification-service  | Python                                   |
-| mobile-app            | React Native                             |
-| Test automation       | Python (API, security, perf, AI tooling); Appium for mobile E2E |
+| Thành phần            | Stack                                    |
+|-----------------------|-------------------------------------------|
+| accounts-service      | Go, Postgres                              |
+| ledger-service        | Go, Postgres                              |
+| settlement-engine     | Go, Postgres (hoặc event-store), mô hình chấm điểm ML |
+| notification-service  | Python                                    |
+| mobile-app            | React Native                              |
+| Test automation       | Python (API, security, perf, AI tooling); Appium cho mobile E2E |
 | Infra                 | Kubernetes (`infra/k8s`), Terraform (`infra/terraform`) |
 
-## 5. Deferred to Implementation Plan(s)
+## 5. Để lại cho Implementation Plan
 
-The following are intentionally left open here and will be decided when each
-sub-project (per-service) is planned:
+Những mục sau đây được cố ý để ngỏ ở đây và sẽ được quyết định khi từng
+sub-project (theo từng service) được lập plan:
 
-- Exact event broker choice and topic/schema design
-- Per-service OpenAPI contracts (`docs/openapi.yaml` is currently an empty
-  placeholder; it should be split or populated per service)
-- ML risk-scoring model choice, training data, and serving approach
-- Gateway/API-facade design for the mobile app
-- CI/CD pipeline details beyond the k8s/terraform skeleton already present
+- Lựa chọn event broker cụ thể và thiết kế topic/schema
+- Contract OpenAPI cho từng service (`docs/openapi.yaml` hiện tại chỉ là
+  placeholder rỗng; cần được tách hoặc điền nội dung theo từng service)
+- Lựa chọn mô hình chấm điểm rủi ro ML, dữ liệu huấn luyện, và cách serving
+- Thiết kế gateway/API-facade cho ứng dụng di động
+- Chi tiết pipeline CI/CD ngoài phần khung k8s/terraform đã có sẵn

@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-This repository is currently a **scaffold** — the directory layout below exists,
-but no service has been implemented yet. There are no build/lint/test
-commands to run because there is no code. As each service is scaffolded
-(starting with ledger-service), update this file with its actual commands
-(build, lint, test, run) rather than assuming conventions from the stack.
+`services/ledger-service` has a working MVP (record + query ledger entries;
+see `services/ledger-service/README.md` for build/lint/test/run commands).
+The other three services (`accounts-service`, `notification-service`,
+`settlement-engine`) and `mobile-app` are still scaffolds with no code. As
+each is implemented, add its build/lint/test commands to this file rather
+than assuming conventions from the stack.
 
 ## What SettleGuard Is
 
