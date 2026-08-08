@@ -20,6 +20,12 @@ trong roadmap, xem "Để lại cho việc khác" bên dưới).
 Coding mode: subagent-driven (không phải mentor mode) — service này lặp
 pattern CRUD đơn giản, không có logic nghiệp vụ phức tạp cần dạy.
 
+Ngoại lệ: business rule liên quan tới `status` (chặn tạo `Account` khi
+`ClientBusiness` cha đang `suspended`, và mọi state transition qua
+`PATCH .../status`) phải được tự đọc kỹ diff và xác nhận trước khi merge
+— đây là phần duy nhất trong MVP này ảnh hưởng tới balance-of-obligation
+sau này, nên không chỉ dựa vào subagent tự báo cáo test pass.
+
 ## 2. Kiến trúc & Tech Stack
 
 Dùng lại nguyên pattern của `ledger-service` để nhất quán toàn hệ thống:
