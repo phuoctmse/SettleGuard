@@ -80,5 +80,18 @@
       "PowerShell(Get-Content *.key*)",
       "PowerShell(Get-Content *secrets*)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-test.ps1\""
+          }
+        ]
+      }
+    ]
   }
 }
