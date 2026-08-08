@@ -40,16 +40,19 @@
       "Bash(terraform apply*)",
       "Bash(kubectl apply*)",
       "Bash(kubectl delete*)",
+      "Bash(go run*)",
       "Bash(rtk git push*)",
       "Bash(rtk git commit --amend*)",
       "Bash(rtk terraform apply*)",
       "Bash(rtk kubectl apply*)",
       "Bash(rtk kubectl delete*)",
+      "Bash(rtk go run*)",
       "PowerShell(git push*)",
       "PowerShell(git commit --amend*)",
       "PowerShell(terraform apply*)",
       "PowerShell(kubectl apply*)",
-      "PowerShell(kubectl delete*)"
+      "PowerShell(kubectl delete*)",
+      "PowerShell(go run*)"
     ],
     "deny": [
       "Read(.env)",
@@ -59,7 +62,23 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(secrets/**)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Bash(cat *.env*)",
+      "Bash(cat *.pem*)",
+      "Bash(cat *.key*)",
+      "Bash(cat *secrets*)",
+      "Bash(rtk cat *.env*)",
+      "Bash(rtk cat *.pem*)",
+      "Bash(rtk cat *.key*)",
+      "Bash(rtk cat *secrets*)",
+      "PowerShell(cat *.env*)",
+      "PowerShell(cat *.pem*)",
+      "PowerShell(cat *.key*)",
+      "PowerShell(cat *secrets*)",
+      "PowerShell(Get-Content *.env*)",
+      "PowerShell(Get-Content *.pem*)",
+      "PowerShell(Get-Content *.key*)",
+      "PowerShell(Get-Content *secrets*)"
     ]
   }
 }
