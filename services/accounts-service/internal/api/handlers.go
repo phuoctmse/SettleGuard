@@ -21,12 +21,14 @@ func NewHandlers(clients *account.ClientRepository, accounts *account.AccountRep
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	// Error is not recoverable after status is sent; client will see partial response either way.
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	// Encode errors are not recoverable once headers are sent; client sees partial response either way.
 	_ = json.NewEncoder(w).Encode(v)
 }
 
