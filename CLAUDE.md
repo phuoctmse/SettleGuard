@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`services/ledger-service` has a working MVP (record + query ledger entries;
-see `services/ledger-service/README.md` for build/lint/test/run commands).
-The other three services (`accounts-service`, `notification-service`,
-`settlement-engine`) and `mobile-app` are still scaffolds with no code. As
-each is implemented, add its build/lint/test commands to this file rather
-than assuming conventions from the stack.
+`services/ledger-service` and `services/accounts-service` have working
+MVPs (see each service's README.md for build/lint/test/run commands). The
+remaining two services (`notification-service`, `settlement-engine`) and
+`mobile-app` are still scaffolds with no code. As each is implemented, add
+its build/lint/test commands to this file rather than assuming conventions
+from the stack.
 
 ## What SettleGuard Is
 
