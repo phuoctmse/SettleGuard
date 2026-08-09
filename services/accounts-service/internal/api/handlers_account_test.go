@@ -73,6 +73,39 @@ func TestCreateAccount_UnknownClient(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
+func TestGetAccount(t *testing.T) {
+	server := newTestServer(t)
+	client := createClientFixture(t, server, "Acme Corp")
+
+	body, err := json.Marshal(map[string]any{"client_id": client["id"], "external_ref": "ext-1"})
+	require.NoError(t, err)
+	createResp, err := http.Post(server.URL+"/accounts", "application/json", bytes.NewReader(body))
+	require.NoError(t, err)
+	defer createResp.Body.Close()
+	var created map[string]any
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	resp, err := http.Get(server.URL + "/accounts/" + created["id"].(string))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var fetched map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fetched))
+	assert.Equal(t, created["id"], fetched["id"])
+	assert.Equal(t, client["id"], fetched["client_id"])
+	assert.Equal(t, "active", fetched["status"])
+}
+
+func TestGetAccount_NotFound(t *testing.T) {
+	server := newTestServer(t)
+
+	resp, err := http.Get(server.URL + "/accounts/00000000-0000-0000-0000-000000000000")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
 func TestListAccounts_ByClient(t *testing.T) {
 	server := newTestServer(t)
 	client := createClientFixture(t, server, "Acme Corp")

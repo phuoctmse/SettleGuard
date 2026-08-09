@@ -55,6 +55,22 @@ func TestCreateClient_RejectsEmptyName(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+func TestGetClient(t *testing.T) {
+	server := newTestServer(t)
+	client := createClientFixture(t, server, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/clients/" + client["id"].(string))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var fetched map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fetched))
+	assert.Equal(t, client["id"], fetched["id"])
+	assert.Equal(t, "Acme Corp", fetched["name"])
+	assert.Equal(t, "active", fetched["status"])
+}
+
 func TestGetClient_NotFound(t *testing.T) {
 	server := newTestServer(t)
 
