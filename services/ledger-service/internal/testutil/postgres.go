@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/phuoctmse/settleguard/ledger-service/internal/db"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/phuoctmse/settleguard/ledger-service/internal/db"
 )
 
 // NewTestDB starts a throwaway Postgres container, runs all migrations

@@ -3,9 +3,10 @@ package db_test
 import (
 	"testing"
 
-	"github.com/phuoctmse/settleguard/ledger-service/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/phuoctmse/settleguard/ledger-service/internal/testutil"
 )
 
 func TestMigrate_CreatesLedgerEntriesTable(t *testing.T) {

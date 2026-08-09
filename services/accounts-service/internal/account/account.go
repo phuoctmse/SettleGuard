@@ -7,6 +7,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// and is an exact interface name mandated by the MVP plan, consumed unchanged by Tasks 5-8.
+//
+//nolint:revive // stutters with package name by design; matches ClientStatus's naming
 type AccountStatus string
 
 const (
