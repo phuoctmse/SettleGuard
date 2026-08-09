@@ -30,7 +30,12 @@ func NewTestDB(t *testing.T) *sql.DB {
 			"POSTGRES_PASSWORD": "accounts",
 			"POSTGRES_DB":       "accounts",
 		},
-		WaitingFor: wait.ForListeningPort("5432/tcp"),
+		// The official Postgres image restarts its server once internally after
+		// initdb; the port can be listening during that restart window before the
+		// server actually accepts connections. Waiting for the readiness log line's
+		// 2nd occurrence (once for the internal setup pass, once for the real start)
+		// avoids the "database system is starting up" flake port-listening alone caused.
+		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
