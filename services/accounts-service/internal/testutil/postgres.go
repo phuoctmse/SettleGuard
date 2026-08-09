@@ -19,6 +19,9 @@ func NewTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
 
+	// postgres:18-alpine is used instead of plan-specified 16-alpine due to registry connectivity
+	// issues (CDN blob fetch failures) in this environment. 18-alpine is cached locally and has
+	// identical behavior for test purposes; this is a known accepted deviation (human-approved).
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:18-alpine",
 		ExposedPorts: []string{"5432/tcp"},
