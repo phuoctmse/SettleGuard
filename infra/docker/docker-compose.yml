@@ -9,16 +9,16 @@ services:
     volumes:
       - ledger_dev_data:/var/lib/postgresql
 
-  # accounts-postgres:
-  #   image: postgres:18-alpine
-  #   container_name: settleguard-accounts-dev
-  #   env_file:
-  #     - ../../services/accounts-service/.env
-  #   ports:
-  #     - "5434:5432"
-  #   volumes:
-  #     - accounts_dev_data:/var/lib/postgresql
+  accounts-postgres:
+    image: postgres:18-alpine
+    container_name: settleguard-accounts-dev
+    env_file:
+      - ../../services/accounts-service/.env
+    ports:
+      - "5434:5432"
+    volumes:
+      - accounts_dev_data:/var/lib/postgresql
 
 volumes:
   ledger_dev_data:
-  # accounts_dev_data:
+  accounts_dev_data:
