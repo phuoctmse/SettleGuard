@@ -1,0 +1,3 @@
+# Go tooling (gofmt, goimports) requires LF line endings; force it
+# regardless of platform/checkout autocrlf settings.
+*.go text eol=lf
