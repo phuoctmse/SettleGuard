@@ -9,9 +9,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// and is an exact interface name mandated by the MVP plan, consumed unchanged by Task 8.
+// AccountRepository stutters with the package name by design, matching
+// ClientRepository's naming, and is an exact interface name mandated by the
+// MVP plan, consumed unchanged by Task 8.
 //
-//nolint:revive // stutters with package name by design; matches ClientRepository's naming
+//nolint:revive
 type AccountRepository struct {
 	db *sql.DB
 }
