@@ -18,5 +18,10 @@ func NewRouter(h *Handlers) http.Handler {
 	r.Get("/clients/{id}", h.GetClient)
 	r.Patch("/clients/{id}/status", h.UpdateClientStatus)
 
+	r.Post("/accounts", h.CreateAccount)
+	r.Get("/accounts", h.ListAccounts)
+	r.Get("/accounts/{id}", h.GetAccount)
+	r.Patch("/accounts/{id}/status", h.UpdateAccountStatus)
+
 	return r
 }
