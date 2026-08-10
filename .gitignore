@@ -82,3 +82,6 @@ coverage.out
 
 # --- Claude Code (personal overrides; .claude/settings.json itself is checked in) ---
 .claude/settings.local.json
+
+# --- Git worktrees (scratch, per-branch working dirs) ---
+/.worktrees/
