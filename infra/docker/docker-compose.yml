@@ -19,6 +19,22 @@ services:
   #   volumes:
   #     - accounts_dev_data:/var/lib/postgresql
 
+  nats:
+    image: nats:2.10-alpine
+    container_name: settleguard-nats-dev
+    command: ["-js", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_dev_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   ledger_dev_data:
   # accounts_dev_data:
+  nats_dev_data:
