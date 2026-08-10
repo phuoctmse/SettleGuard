@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,10 +29,15 @@ func TestConnect_InvalidURL(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEnsureStream_CreatesLedgerEventsStream(t *testing.T) {
+func TestEnsureStream_CreatesStream(t *testing.T) {
 	_, js := testutil.NewTestNATS(t)
 
-	err := broker.EnsureStream(context.Background(), js)
+	cfg := jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}
+	err := broker.EnsureStream(context.Background(), js, cfg)
 	require.NoError(t, err)
 
 	stream, err := js.Stream(context.Background(), broker.LedgerEventsStream)
@@ -45,7 +51,12 @@ func TestEnsureStream_CreatesLedgerEventsStream(t *testing.T) {
 func TestEnsureStream_IsIdempotent(t *testing.T) {
 	_, js := testutil.NewTestNATS(t)
 
-	require.NoError(t, broker.EnsureStream(context.Background(), js))
-	err := broker.EnsureStream(context.Background(), js)
+	cfg := jetstream.StreamConfig{
+		Name:     broker.AccountsEventsStream,
+		Subjects: []string{"account.>"},
+		Storage:  jetstream.FileStorage,
+	}
+	require.NoError(t, broker.EnsureStream(context.Background(), js, cfg))
+	err := broker.EnsureStream(context.Background(), js, cfg)
 	assert.NoError(t, err, "calling EnsureStream twice with the same config must not error")
 }

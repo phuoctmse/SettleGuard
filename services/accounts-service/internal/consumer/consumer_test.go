@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 
 	"github.com/phuoctmse/settleguard/accounts-service/internal/account"
@@ -20,7 +21,11 @@ func TestConsumer_AppliesBalanceOnPublish(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	_, js := testutil.NewTestNATS(t)
 	ctx := context.Background()
-	require.NoError(t, broker.EnsureStream(ctx, js))
+	require.NoError(t, broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}))
 
 	accounts := account.NewAccountRepository(db)
 	clients := account.NewClientRepository(db)
@@ -56,7 +61,11 @@ func TestConsumer_IdempotentAcrossRedelivery(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	_, js := testutil.NewTestNATS(t)
 	ctx := context.Background()
-	require.NoError(t, broker.EnsureStream(ctx, js))
+	require.NoError(t, broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}))
 
 	accounts := account.NewAccountRepository(db)
 	clients := account.NewClientRepository(db)
@@ -106,7 +115,11 @@ func TestConsumer_SkipsMessageReferencingUnknownAccountWithoutWedging(t *testing
 	db := testutil.NewTestDB(t)
 	_, js := testutil.NewTestNATS(t)
 	ctx := context.Background()
-	require.NoError(t, broker.EnsureStream(ctx, js))
+	require.NoError(t, broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}))
 
 	accounts := account.NewAccountRepository(db)
 	clients := account.NewClientRepository(db)
@@ -151,7 +164,11 @@ func TestConsumer_TerminatesMalformedPayloadWithoutWedging(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	nc, js := testutil.NewTestNATS(t)
 	ctx := context.Background()
-	require.NoError(t, broker.EnsureStream(ctx, js))
+	require.NoError(t, broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}))
 
 	accounts := account.NewAccountRepository(db)
 	clients := account.NewClientRepository(db)

@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nats-io/nats.go/jetstream"
+
 	"github.com/phuoctmse/settleguard/accounts-service/internal/account"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/api"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/broker"
@@ -44,8 +46,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := broker.EnsureStream(ctx, js); err != nil {
-		log.Fatalf("ensure jetstream stream: %v", err)
+	if err := broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}); err != nil {
+		log.Fatalf("ensure ledger events stream: %v", err)
 	}
 
 	clients := account.NewClientRepository(conn)
