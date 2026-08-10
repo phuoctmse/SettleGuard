@@ -15,6 +15,7 @@ import (
 	"github.com/phuoctmse/settleguard/accounts-service/internal/broker"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/consumer"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/db"
+	"github.com/phuoctmse/settleguard/accounts-service/internal/outbox"
 )
 
 func main() {
@@ -53,6 +54,13 @@ func main() {
 	}); err != nil {
 		log.Fatalf("ensure ledger events stream: %v", err)
 	}
+	if err := broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.AccountsEventsStream,
+		Subjects: []string{"account.>"},
+		Storage:  jetstream.FileStorage,
+	}); err != nil {
+		log.Fatalf("ensure accounts events stream: %v", err)
+	}
 
 	clients := account.NewClientRepository(conn)
 	accounts := account.NewAccountRepository(conn)
@@ -63,6 +71,13 @@ func main() {
 		log.Fatalf("start balance consumer: %v", err)
 	}
 	defer consumeCtx.Stop()
+
+	accountUpdatedRelay := outbox.NewRelay(conn, js)
+	go func() {
+		if err := accountUpdatedRelay.Run(ctx); err != nil {
+			log.Printf("account.updated outbox relay stopped: %v", err)
+		}
+	}()
 
 	handlers := api.NewHandlers(clients, accounts)
 	router := api.NewRouter(handlers)
