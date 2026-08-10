@@ -40,14 +40,28 @@ func (r *AccountRepository) Create(ctx context.Context, clientID uuid.UUID, exte
 		return Account{}, ErrClientSuspended
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Account{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	acc := NewAccount(clientID, externalRef)
-	err = r.db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO accounts (id, client_id, external_ref, status)
 		VALUES ($1, $2, $3, $4)
 		RETURNING balance, created_at, updated_at
 	`, acc.ID, acc.ClientID, acc.ExternalRef, string(acc.Status)).Scan(&acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
 	if err != nil {
 		return Account{}, fmt.Errorf("insert account: %w", err)
+	}
+
+	if err := insertOutboxEvent(ctx, tx, acc); err != nil {
+		return Account{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Account{}, fmt.Errorf("commit tx: %w", err)
 	}
 
 	return acc, nil
@@ -102,11 +116,17 @@ func (r *AccountRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 		return Account{}, ErrInvalidAccountStatus
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Account{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var (
 		acc          Account
 		storedStatus string
 	)
-	err := r.db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE accounts SET status = $1, updated_at = now() WHERE id = $2
 		RETURNING id, client_id, external_ref, status, balance, created_at, updated_at
 	`, string(status), id).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &storedStatus, &acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
@@ -117,6 +137,15 @@ func (r *AccountRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 		return Account{}, fmt.Errorf("update account status: %w", err)
 	}
 	acc.Status = AccountStatus(storedStatus)
+
+	if err := insertOutboxEvent(ctx, tx, acc); err != nil {
+		return Account{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Account{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	return acc, nil
 }
 
@@ -150,14 +179,25 @@ func (r *AccountRepository) ApplyLedgerTransaction(ctx context.Context, transact
 	}
 
 	for accountID, delta := range deltas {
-		result, err := tx.ExecContext(ctx, `
+		var (
+			acc          Account
+			storedStatus string
+		)
+		err := tx.QueryRowContext(ctx, `
 			UPDATE accounts SET balance = balance + $1, updated_at = now() WHERE id = $2
-		`, delta, accountID)
+			RETURNING id, client_id, external_ref, status, balance, created_at, updated_at
+		`, delta, accountID).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &storedStatus, &acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("account: ledger transaction %s references unknown account %s, skipping", transactionID, accountID)
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("apply balance delta for account %s: %w", accountID, err)
 		}
-		if n, _ := result.RowsAffected(); n == 0 {
-			log.Printf("account: ledger transaction %s references unknown account %s, skipping", transactionID, accountID)
+		acc.Status = AccountStatus(storedStatus)
+
+		if err := insertOutboxEvent(ctx, tx, acc); err != nil {
+			return err
 		}
 	}
 

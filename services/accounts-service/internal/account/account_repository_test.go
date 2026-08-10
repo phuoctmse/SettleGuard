@@ -2,6 +2,7 @@ package account_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/google/uuid"
@@ -11,6 +12,16 @@ import (
 	"github.com/phuoctmse/settleguard/accounts-service/internal/account"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/testutil"
 )
+
+func countUnpublishedOutboxEvents(t *testing.T, conn *sql.DB, eventType string) int {
+	t.Helper()
+	var count int
+	err := conn.QueryRow(`
+		SELECT count(*) FROM outbox_events WHERE event_type = $1 AND published_at IS NULL
+	`, eventType).Scan(&count)
+	require.NoError(t, err)
+	return count
+}
 
 func TestAccountRepository_CreateAndGet(t *testing.T) {
 	conn := testutil.NewTestDB(t)
@@ -30,6 +41,20 @@ func TestAccountRepository_CreateAndGet(t *testing.T) {
 	fetched, err := accounts.Get(context.Background(), created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, created, fetched)
+}
+
+func TestAccountRepository_Create_WritesOutboxEvent(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	clients := account.NewClientRepository(conn)
+	accounts := account.NewAccountRepository(conn)
+
+	client, err := clients.Create(context.Background(), "Acme Corp")
+	require.NoError(t, err)
+
+	_, err = accounts.Create(context.Background(), client.ID, "ext-123")
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, countUnpublishedOutboxEvents(t, conn, account.EventAccountUpdated))
 }
 
 func TestAccountRepository_Create_RejectsSuspendedClient(t *testing.T) {
@@ -79,6 +104,31 @@ func TestApplyLedgerTransaction_UpdatesBalances(t *testing.T) {
 	fetchedB, err := accounts.Get(context.Background(), accB.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(500), fetchedB.Balance)
+}
+
+func TestApplyLedgerTransaction_WritesOutboxEventPerTouchedAccount(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	clients := account.NewClientRepository(conn)
+	accounts := account.NewAccountRepository(conn)
+
+	client, err := clients.Create(context.Background(), "Acme Corp")
+	require.NoError(t, err)
+	accA, err := accounts.Create(context.Background(), client.ID, "a")
+	require.NoError(t, err)
+	accB, err := accounts.Create(context.Background(), client.ID, "b")
+	require.NoError(t, err)
+
+	// Two Create calls above already wrote two outbox rows; this call
+	// should add exactly two more (one per touched account), and an
+	// unknown account in the same deltas map must not add a third.
+	err = accounts.ApplyLedgerTransaction(context.Background(), uuid.New(), map[uuid.UUID]int64{
+		accA.ID:    -500,
+		accB.ID:    500,
+		uuid.New(): 100,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, 4, countUnpublishedOutboxEvents(t, conn, account.EventAccountUpdated))
 }
 
 func TestApplyLedgerTransaction_IdempotentOnSameTransactionID(t *testing.T) {
@@ -178,6 +228,9 @@ func TestAccountRepository_UpdateStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, account.AccountStatusClosed, updated.Status)
 	assert.True(t, updated.UpdatedAt.After(created.UpdatedAt) || updated.UpdatedAt.Equal(created.UpdatedAt))
+
+	// Create + UpdateStatus each write one outbox row.
+	assert.Equal(t, 2, countUnpublishedOutboxEvents(t, conn, account.EventAccountUpdated))
 }
 
 func TestAccountRepository_UpdateStatus_RejectsInvalid(t *testing.T) {
