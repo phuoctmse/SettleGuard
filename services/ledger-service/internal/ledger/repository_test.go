@@ -2,6 +2,8 @@ package ledger_test
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -41,6 +43,46 @@ func TestRepository_InsertTransaction(t *testing.T) {
 		assert.Equal(t, txID, e.TransactionID)
 		assert.NotEqual(t, uuid.Nil, e.ID)
 	}
+}
+
+func TestRepository_InsertTransaction_WritesOutboxEvent(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+
+	accountA := uuid.New()
+	accountB := uuid.New()
+	txID := uuid.New()
+
+	entries := []ledger.Entry{
+		{AccountID: accountA, Direction: ledger.Debit, Amount: 1000, Reason: "payout"},
+		{AccountID: accountB, Direction: ledger.Credit, Amount: 1000, Reason: "payout"},
+	}
+
+	_, err := repo.InsertTransaction(context.Background(), txID, entries)
+	require.NoError(t, err)
+
+	var (
+		eventType   string
+		subject     string
+		payloadRaw  []byte
+		publishedAt sql.NullTime
+	)
+	err = conn.QueryRow(`
+		SELECT event_type, subject, payload, published_at
+		FROM outbox_events WHERE event_type = 'ledger.entry-recorded'
+	`).Scan(&eventType, &subject, &payloadRaw, &publishedAt)
+	require.NoError(t, err)
+
+	assert.Equal(t, "ledger.entry-recorded", eventType)
+	assert.Equal(t, "ledger.entry-recorded", subject)
+	assert.False(t, publishedAt.Valid, "published_at should be NULL until the relay publishes it")
+
+	var payload ledger.OutboxPayload
+	require.NoError(t, json.Unmarshal(payloadRaw, &payload))
+	assert.Equal(t, txID, payload.TransactionID)
+	require.Len(t, payload.Entries, 2)
+	assert.Equal(t, accountA, payload.Entries[0].AccountID)
+	assert.Equal(t, ledger.Debit, ledger.Direction(payload.Entries[0].Direction))
 }
 
 func TestRepository_ListByAccount(t *testing.T) {
