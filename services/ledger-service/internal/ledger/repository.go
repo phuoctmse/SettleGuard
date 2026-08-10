@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -48,6 +49,17 @@ func (r *Repository) InsertTransaction(ctx context.Context, transactionID uuid.U
 			return nil, fmt.Errorf("insert entry: %w", err)
 		}
 		inserted[i] = e
+	}
+
+	payload, err := json.Marshal(newOutboxPayload(transactionID, inserted))
+	if err != nil {
+		return nil, fmt.Errorf("marshal outbox payload: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO outbox_events (id, event_type, subject, payload)
+		VALUES ($1, $2, $3, $4)
+	`, uuid.New(), EventLedgerEntryRecorded, EventLedgerEntryRecorded, payload); err != nil {
+		return nil, fmt.Errorf("insert outbox event: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
