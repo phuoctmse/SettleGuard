@@ -39,8 +39,10 @@ re-runs/audits, independent consumer groups, lighter ops than Kafka,
 pure-Go client). `ledger-service` publishes `ledger.entry-recorded` via a
 transactional outbox pattern; `accounts-service` consumes it to maintain
 `Account.balance` (`Σcredit − Σdebit`), idempotent via a processed-transaction
-dedup table. `accounts-service`'s own `account.updated` publisher and
-`settlement-engine`'s consumer are still pending.
+dedup table, and itself publishes `account.updated` (same outbox pattern,
+own `ACCOUNTS_EVENTS` stream) on every account mutation. No consumer of
+`account.updated` exists yet. `settlement-engine`'s consumer of
+`ledger.entry-recorded` is still pending.
 
 - **`services/accounts-service`** (Go, Postgres) — owns party/account
   identity, balances-of-obligation, and account status. Publishes

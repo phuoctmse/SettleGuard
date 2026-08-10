@@ -33,6 +33,22 @@ transaction. Idempotent against redelivery via `processed_ledger_transactions`
 `docs/superpowers/plans/2026-08-10-accounts-service-balance-consumer.md`
 for the full design.
 
+## Event publishing
+
+Every `Account` mutation (`POST /accounts`, `PATCH /accounts/{id}/status`,
+and internal balance updates from the ledger consumer above) publishes one
+`account.updated` event to NATS JetStream, subject `account.updated` on
+stream `ACCOUNTS_EVENTS` (owned by this service). Payload is a full
+snapshot of the account's post-write state, not a diff. Same transactional
+outbox pattern as `ledger-service`'s `ledger.entry-recorded` publisher and
+this service's own balance consumer: a DB-transaction-scoped
+`outbox_events` row, relayed by a background goroutine
+(`internal/outbox`), at-least-once with dedupe via `Nats-Msg-Id`. No
+consumer exists yet — `notification-service` and `mobile-app` are still
+scaffolds. See
+`docs/superpowers/plans/2026-08-10-accounts-service-account-updated-publisher.md`
+for the full design.
+
 ## Build
 
 ```bash
