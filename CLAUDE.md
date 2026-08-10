@@ -37,8 +37,12 @@ synchronously. Broker: **NATS JetStream** (decided 2026-08-10 — durability
 + per-subject ordering for ledger correctness, replay for risk-model
 re-runs/audits, independent consumer groups, lighter ops than Kafka,
 pure-Go client). `ledger-service` publishes `ledger.entry-recorded` via a
-transactional outbox pattern (see `services/ledger-service/README.md`).
-Other services' publishers/consumers are still pending.
+transactional outbox pattern; `accounts-service` consumes it to maintain
+`Account.balance` (`Σcredit − Σdebit`), idempotent via a processed-transaction
+dedup table, and itself publishes `account.updated` (same outbox pattern,
+own `ACCOUNTS_EVENTS` stream) on every account mutation. No consumer of
+`account.updated` exists yet. `settlement-engine`'s consumer of
+`ledger.entry-recorded` is still pending.
 
 - **`services/accounts-service`** (Go, Postgres) — owns party/account
   identity, balances-of-obligation, and account status. Publishes

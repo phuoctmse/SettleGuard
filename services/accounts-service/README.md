@@ -8,16 +8,46 @@ full design and `docs/PROJECT_CHARTER.md` for system-wide context.
 
 ## Run locally
 
-Requires a reachable Postgres instance.
+Requires a reachable Postgres instance and a NATS server with JetStream
+enabled (`docker compose -f infra/docker/docker-compose.yml up -d
+accounts-postgres nats`).
 
 ```bash
 export DATABASE_URL="postgres://accounts:accounts@localhost:5432/accounts?sslmode=disable"
+export NATS_URL="nats://localhost:4222"
 go run ./cmd/server
 ```
 
 Migrations run automatically on startup. Listens on `:8081` by default
 (override with `LISTEN_ADDR`) so it can run alongside `ledger-service`
 locally.
+
+## Balance tracking
+
+`Account.balance` is **eventually consistent**, not set synchronously on
+account creation. It starts at `0` and is updated asynchronously by a
+JetStream consumer (`internal/consumer`) that applies `ledger-service`'s
+`ledger.entry-recorded` events: `balance += Σcredit − Σdebit` per
+transaction. Idempotent against redelivery via `processed_ledger_transactions`
+(dedup keyed on `transaction_id`). See
+`docs/superpowers/plans/2026-08-10-accounts-service-balance-consumer.md`
+for the full design.
+
+## Event publishing
+
+Every `Account` mutation (`POST /accounts`, `PATCH /accounts/{id}/status`,
+and internal balance updates from the ledger consumer above) publishes one
+`account.updated` event to NATS JetStream, subject `account.updated` on
+stream `ACCOUNTS_EVENTS` (owned by this service). Payload is a full
+snapshot of the account's post-write state, not a diff. Same transactional
+outbox pattern as `ledger-service`'s `ledger.entry-recorded` publisher and
+this service's own balance consumer: a DB-transaction-scoped
+`outbox_events` row, relayed by a background goroutine
+(`internal/outbox`), at-least-once with dedupe via `Nats-Msg-Id`. No
+consumer exists yet — `notification-service` and `mobile-app` are still
+scaffolds. See
+`docs/superpowers/plans/2026-08-10-accounts-service-account-updated-publisher.md`
+for the full design.
 
 ## Build
 
@@ -56,3 +86,6 @@ go test ./internal/account/... -run TestCanCreateAccount -v
 - `GET /accounts/{id}` — `200` Account or `404`.
 - `GET /accounts?client_id=<uuid>` — `200` list of Accounts under that client (empty list, not an error, if none). `400` if `client_id` is missing or invalid.
 - `PATCH /accounts/{id}/status` — body `{"status": "active"|"suspended"|"closed"}` → `200` updated Account, `400` if status is invalid, `404` if not found.
+
+Account responses include `"balance": <int64>` — see "Balance tracking"
+above for how/when it updates.

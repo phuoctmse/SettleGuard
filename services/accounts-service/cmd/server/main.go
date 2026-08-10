@@ -1,19 +1,31 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/phuoctmse/settleguard/accounts-service/internal/account"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/api"
+	"github.com/phuoctmse/settleguard/accounts-service/internal/broker"
+	"github.com/phuoctmse/settleguard/accounts-service/internal/consumer"
 	"github.com/phuoctmse/settleguard/accounts-service/internal/db"
+	"github.com/phuoctmse/settleguard/accounts-service/internal/outbox"
 )
 
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL environment variable is required")
+	}
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		log.Fatal("NATS_URL environment variable is required")
 	}
 
 	conn, err := db.Connect(dsn)
@@ -26,8 +38,47 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
+	natsConn, js, err := broker.Connect(natsURL)
+	if err != nil {
+		log.Fatalf("connect to nats: %v", err)
+	}
+	defer natsConn.Close()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.LedgerEventsStream,
+		Subjects: []string{"ledger.>"},
+		Storage:  jetstream.FileStorage,
+	}); err != nil {
+		log.Fatalf("ensure ledger events stream: %v", err)
+	}
+	if err := broker.EnsureStream(ctx, js, jetstream.StreamConfig{
+		Name:     broker.AccountsEventsStream,
+		Subjects: []string{"account.>"},
+		Storage:  jetstream.FileStorage,
+	}); err != nil {
+		log.Fatalf("ensure accounts events stream: %v", err)
+	}
+
 	clients := account.NewClientRepository(conn)
 	accounts := account.NewAccountRepository(conn)
+
+	balanceConsumer := consumer.New(accounts)
+	consumeCtx, err := balanceConsumer.Start(ctx, js)
+	if err != nil {
+		log.Fatalf("start balance consumer: %v", err)
+	}
+	defer consumeCtx.Stop()
+
+	accountUpdatedRelay := outbox.NewRelay(conn, js)
+	go func() {
+		if err := accountUpdatedRelay.Run(ctx); err != nil {
+			log.Printf("account.updated outbox relay stopped: %v", err)
+		}
+	}()
+
 	handlers := api.NewHandlers(clients, accounts)
 	router := api.NewRouter(handlers)
 
