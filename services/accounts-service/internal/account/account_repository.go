@@ -43,8 +43,8 @@ func (r *AccountRepository) Create(ctx context.Context, clientID uuid.UUID, exte
 	err = r.db.QueryRowContext(ctx, `
 		INSERT INTO accounts (id, client_id, external_ref, status)
 		VALUES ($1, $2, $3, $4)
-		RETURNING created_at, updated_at
-	`, acc.ID, acc.ClientID, acc.ExternalRef, string(acc.Status)).Scan(&acc.CreatedAt, &acc.UpdatedAt)
+		RETURNING balance, created_at, updated_at
+	`, acc.ID, acc.ClientID, acc.ExternalRef, string(acc.Status)).Scan(&acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
 	if err != nil {
 		return Account{}, fmt.Errorf("insert account: %w", err)
 	}
@@ -58,9 +58,9 @@ func (r *AccountRepository) Get(ctx context.Context, id uuid.UUID) (Account, err
 		status string
 	)
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, client_id, external_ref, status, created_at, updated_at
+		SELECT id, client_id, external_ref, status, balance, created_at, updated_at
 		FROM accounts WHERE id = $1
-	`, id).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &status, &acc.CreatedAt, &acc.UpdatedAt)
+	`, id).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &status, &acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Account{}, ErrAccountNotFound
 	}
@@ -73,7 +73,7 @@ func (r *AccountRepository) Get(ctx context.Context, id uuid.UUID) (Account, err
 
 func (r *AccountRepository) ListByClient(ctx context.Context, clientID uuid.UUID) ([]Account, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, client_id, external_ref, status, created_at, updated_at
+		SELECT id, client_id, external_ref, status, balance, created_at, updated_at
 		FROM accounts WHERE client_id = $1 ORDER BY created_at
 	`, clientID)
 	if err != nil {
@@ -87,7 +87,7 @@ func (r *AccountRepository) ListByClient(ctx context.Context, clientID uuid.UUID
 			acc    Account
 			status string
 		)
-		if err := rows.Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &status, &acc.CreatedAt, &acc.UpdatedAt); err != nil {
+		if err := rows.Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &status, &acc.Balance, &acc.CreatedAt, &acc.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan account: %w", err)
 		}
 		acc.Status = AccountStatus(status)
@@ -107,8 +107,8 @@ func (r *AccountRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	)
 	err := r.db.QueryRowContext(ctx, `
 		UPDATE accounts SET status = $1, updated_at = now() WHERE id = $2
-		RETURNING id, client_id, external_ref, status, created_at, updated_at
-	`, string(status), id).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &storedStatus, &acc.CreatedAt, &acc.UpdatedAt)
+		RETURNING id, client_id, external_ref, status, balance, created_at, updated_at
+	`, string(status), id).Scan(&acc.ID, &acc.ClientID, &acc.ExternalRef, &storedStatus, &acc.Balance, &acc.CreatedAt, &acc.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Account{}, ErrAccountNotFound
 	}

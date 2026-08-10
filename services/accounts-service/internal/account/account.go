@@ -34,6 +34,7 @@ type Account struct {
 	ClientID    uuid.UUID
 	ExternalRef string
 	Status      AccountStatus
+	Balance     int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

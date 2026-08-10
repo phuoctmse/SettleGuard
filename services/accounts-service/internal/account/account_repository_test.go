@@ -25,6 +25,7 @@ func TestAccountRepository_CreateAndGet(t *testing.T) {
 	assert.Equal(t, client.ID, created.ClientID)
 	assert.Equal(t, "ext-123", created.ExternalRef)
 	assert.Equal(t, account.AccountStatusActive, created.Status)
+	assert.Equal(t, int64(0), created.Balance, "a freshly created account starts at a zero balance")
 
 	fetched, err := accounts.Get(context.Background(), created.ID)
 	require.NoError(t, err)

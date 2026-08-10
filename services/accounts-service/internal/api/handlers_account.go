@@ -16,6 +16,7 @@ type accountResponse struct {
 	ClientID    string `json:"client_id"`
 	ExternalRef string `json:"external_ref,omitempty"`
 	Status      string `json:"status"`
+	Balance     int64  `json:"balance"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
@@ -26,6 +27,7 @@ func toAccountResponse(a account.Account) accountResponse {
 		ClientID:    a.ClientID.String(),
 		ExternalRef: a.ExternalRef,
 		Status:      string(a.Status),
+		Balance:     a.Balance,
 		CreatedAt:   a.CreatedAt.Format(timeFormat),
 		UpdatedAt:   a.UpdatedAt.Format(timeFormat),
 	}
