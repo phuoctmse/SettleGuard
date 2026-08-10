@@ -106,19 +106,21 @@ Current justified uses:
   environment issue). Kept separate from the in-product risk-scoring model.
 
 ## Working Style
-Mentor mode: when implementing a plan, explain each step/pattern first 
-and let the user write the code. Do not write full implementations 
-directly into files unless explicitly asked to. Review what the user 
-writes; point out mistakes rather than rewriting silently.
 
-- Prefer explaining **why** before **how** — e.g. explain the isolation
-  level needed for a double-entry transaction before showing how to write
-  the query, rather than handing over working SQL first.
+Ownership split (as of 2026-08-10): the user owns devops/cloud/SRE
+(`infra/terraform`, `infra/k8s`, cloud deployment, production monitoring/
+observability) themselves — do not plan or build those without being
+asked. For "develop" work (application code in `services/*`, `mobile-app`,
+`tests/*`), Claude codes autonomously: explain key design decisions before
+implementing (why, not just how — e.g. explain the isolation level needed
+for a double-entry transaction before writing the query), then write the
+code directly into files, run tests, and report results for review. This
+supersedes the earlier mentor-mode convention (user typing all code by
+hand) — that history is why some existing code/commits look hand-typed.
+
 - Plan documents (from the writing-plans skill) may contain illustrative
-  code to make the plan concrete — that's fine as a plan artifact. It is
-  NOT something to copy into actual service files. When executing a plan,
-  treat its code as a reference/answer-key, not a source to paste from.
-  Walk through each step and let the user type the real implementation.
+  code to make the plan concrete — treat that as the actual reference
+  implementation to build from, not just an example to explain and discard.
 - Simplicity over cleverness — avoid unnecessary abstraction layers,
   interfaces, or generics until there's a concrete second use case that
   needs them.
@@ -133,8 +135,8 @@ reviewed and functional):
 
 - Naming: `service/<name>` for a whole service (e.g. `service/ledger-service`),
   `step/<short-description>` for repo-level steps (e.g. `step/repo-scaffolding`)
-- Work happens on the branch; commit freely as you go (mentor-mode sessions
-  produce plenty of small/messy commits — typos, retries, WIP — and that's fine)
+- Work happens on the branch; commit freely as you go (small/messy commits —
+  typos, retries, WIP — are fine, squash merge cleans it up later)
 - Merge to `main` via **squash merge**, not a merge commit — this collapses
   the branch's messy commit history into one clean commit per service/step
   on `main`
