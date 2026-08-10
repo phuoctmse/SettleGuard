@@ -26,7 +26,9 @@ func (r *Repository) InsertTransaction(ctx context.Context, transactionID uuid.U
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	// Rollback error is ignored: a no-op if Commit already succeeded, and if it
+	// fails after a real error, the original error is what matters to the caller.
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO ledger_entries (id,  transaction_id, account_id,

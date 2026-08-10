@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
-	"github.com/phuoctmse/settleguard/ledger-service/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
+	"github.com/phuoctmse/settleguard/ledger-service/internal/testutil"
 )
 
 func insertTestTransaction(t *testing.T, repo *ledger.Repository, entries []ledger.Entry) (uuid.UUID, []ledger.Entry) {

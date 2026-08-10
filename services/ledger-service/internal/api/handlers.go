@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+
 	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
 )
 
@@ -43,13 +44,15 @@ func NewHandlers(repo *ledger.Repository) *Handlers {
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+	// Error is not recoverable after status is sent; client sees partial response either way.
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	// Encode errors are not recoverable once headers are sent; client sees partial response either way.
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 func writeEntries(w http.ResponseWriter, status int, entries []ledger.Entry) {
@@ -67,7 +70,8 @@ func writeEntries(w http.ResponseWriter, status int, entries []ledger.Entry) {
 	}
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resp)
+	// Encode errors are not recoverable once headers are sent; client sees partial response either way.
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handlers) ListEntries(w http.ResponseWriter, r *http.Request) {
