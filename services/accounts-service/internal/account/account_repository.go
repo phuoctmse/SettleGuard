@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 )
@@ -117,4 +118,48 @@ func (r *AccountRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	}
 	acc.Status = AccountStatus(storedStatus)
 	return acc, nil
+}
+
+// ApplyLedgerTransaction idempotently applies the net balance deltas from
+// one ledger transaction. If transactionID has already been processed
+// (recorded in processed_ledger_transactions), it is a no-op — this is the
+// dedup mechanism protecting against redelivery of an at-least-once event.
+// A delta for an account_id with no matching local accounts row is
+// skipped (logged, not an error): ledger-service and accounts-service are
+// separate bounded contexts with no foreign key between them.
+func (r *AccountRepository) ApplyLedgerTransaction(ctx context.Context, transactionID uuid.UUID, deltas map[uuid.UUID]int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO processed_ledger_transactions (transaction_id) VALUES ($1)
+		ON CONFLICT (transaction_id) DO NOTHING
+	`, transactionID)
+	if err != nil {
+		return fmt.Errorf("mark transaction processed: %w", err)
+	}
+	inserted, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check processed-transaction insert: %w", err)
+	}
+	if inserted == 0 {
+		return tx.Commit()
+	}
+
+	for accountID, delta := range deltas {
+		result, err := tx.ExecContext(ctx, `
+			UPDATE accounts SET balance = balance + $1, updated_at = now() WHERE id = $2
+		`, delta, accountID)
+		if err != nil {
+			return fmt.Errorf("apply balance delta for account %s: %w", accountID, err)
+		}
+		if n, _ := result.RowsAffected(); n == 0 {
+			log.Printf("account: ledger transaction %s references unknown account %s, skipping", transactionID, accountID)
+		}
+	}
+
+	return tx.Commit()
 }

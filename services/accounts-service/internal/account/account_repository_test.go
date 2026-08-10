@@ -54,6 +54,86 @@ func TestAccountRepository_Create_UnknownClient(t *testing.T) {
 	assert.ErrorIs(t, err, account.ErrClientNotFound)
 }
 
+func TestApplyLedgerTransaction_UpdatesBalances(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	clients := account.NewClientRepository(conn)
+	accounts := account.NewAccountRepository(conn)
+
+	client, err := clients.Create(context.Background(), "Acme Corp")
+	require.NoError(t, err)
+	accA, err := accounts.Create(context.Background(), client.ID, "a")
+	require.NoError(t, err)
+	accB, err := accounts.Create(context.Background(), client.ID, "b")
+	require.NoError(t, err)
+
+	err = accounts.ApplyLedgerTransaction(context.Background(), uuid.New(), map[uuid.UUID]int64{
+		accA.ID: -500,
+		accB.ID: 500,
+	})
+	require.NoError(t, err)
+
+	fetchedA, err := accounts.Get(context.Background(), accA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(-500), fetchedA.Balance)
+
+	fetchedB, err := accounts.Get(context.Background(), accB.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), fetchedB.Balance)
+}
+
+func TestApplyLedgerTransaction_IdempotentOnSameTransactionID(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	clients := account.NewClientRepository(conn)
+	accounts := account.NewAccountRepository(conn)
+
+	client, err := clients.Create(context.Background(), "Acme Corp")
+	require.NoError(t, err)
+	acc, err := accounts.Create(context.Background(), client.ID, "a")
+	require.NoError(t, err)
+
+	txID := uuid.New()
+	deltas := map[uuid.UUID]int64{acc.ID: 500}
+
+	require.NoError(t, accounts.ApplyLedgerTransaction(context.Background(), txID, deltas))
+	require.NoError(t, accounts.ApplyLedgerTransaction(context.Background(), txID, deltas))
+
+	fetched, err := accounts.Get(context.Background(), acc.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), fetched.Balance, "applying the same transaction twice must not double-count")
+}
+
+func TestApplyLedgerTransaction_SkipsUnknownAccountGracefully(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	clients := account.NewClientRepository(conn)
+	accounts := account.NewAccountRepository(conn)
+
+	client, err := clients.Create(context.Background(), "Acme Corp")
+	require.NoError(t, err)
+	acc, err := accounts.Create(context.Background(), client.ID, "a")
+	require.NoError(t, err)
+
+	unknownAccountID := uuid.New()
+	txID := uuid.New()
+
+	err = accounts.ApplyLedgerTransaction(context.Background(), txID, map[uuid.UUID]int64{
+		acc.ID:           500,
+		unknownAccountID: -500,
+	})
+	require.NoError(t, err, "an unknown account_id in the deltas must not fail the whole apply")
+
+	fetched, err := accounts.Get(context.Background(), acc.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), fetched.Balance)
+
+	// A second call with the same transactionID is still a no-op (proves
+	// the transaction was correctly marked processed even though it
+	// touched an unknown account).
+	require.NoError(t, accounts.ApplyLedgerTransaction(context.Background(), txID, map[uuid.UUID]int64{acc.ID: 500}))
+	fetched, err = accounts.Get(context.Background(), acc.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), fetched.Balance)
+}
+
 func TestAccountRepository_Get_NotFound(t *testing.T) {
 	conn := testutil.NewTestDB(t)
 	accounts := account.NewAccountRepository(conn)
