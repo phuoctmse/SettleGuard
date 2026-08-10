@@ -32,8 +32,13 @@ Full charter: `docs/PROJECT_CHARTER.md`. Full architecture/domain-model design:
 
 SettleGuard is event-driven: each service owns its own data and schema, with
 no cross-service direct database access. Services communicate by publishing
-and consuming events over a broker (exact technology TBD per-service
-implementation plan) rather than calling each other synchronously.
+and consuming events over a broker rather than calling each other
+synchronously. Broker: **NATS JetStream** (decided 2026-08-10 — durability
++ per-subject ordering for ledger correctness, replay for risk-model
+re-runs/audits, independent consumer groups, lighter ops than Kafka,
+pure-Go client). `ledger-service` publishes `ledger.entry-recorded` via a
+transactional outbox pattern (see `services/ledger-service/README.md`).
+Other services' publishers/consumers are still pending.
 
 - **`services/accounts-service`** (Go, Postgres) — owns party/account
   identity, balances-of-obligation, and account status. Publishes
@@ -81,6 +86,9 @@ Transaction, RiskScore, Settlement (batch), Alert/Notification.
     code-gen tooling (e.g. no sqlc)
   - `testcontainers-go` for DB tests — real Postgres in tests, no
     `sqlmock`/mocked driver
+  - `nats.go` (`jetstream` subpackage) for NATS JetStream event
+    publishing/consuming — real JetStream in tests via
+    `testcontainers-go/modules/nats`, no broker mock
   - Standard layout per service: `cmd/server/main.go` (entrypoint) +
     `internal/{api,db,<domain>}/` (unimportable from outside the module)
   - Module path: `github.com/phuoctmse/settleguard/<service-name>`
