@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/phuoctmse/settleguard/ledger-service/internal/api"
 	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
 	"github.com/phuoctmse/settleguard/ledger-service/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCreateTransaction(t *testing.T) {

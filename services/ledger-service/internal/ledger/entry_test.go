@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/phuoctmse/settleguard/ledger-service/internal/ledger"
 )
 
 func TestValidate(t *testing.T) {
