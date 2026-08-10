@@ -10,10 +10,10 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// NewTestNATS starts a throwaway NATS server with JetStream enabled and
-// returns a connected *nats.Conn plus its JetStream handle. The container
-// and connection are torn down automatically when the test completes.
-func NewTestNATS(t testing.TB) (*nats.Conn, jetstream.JetStream) {
+// NewTestNATSURL starts a throwaway NATS server with JetStream enabled and
+// returns its client connection URL. The container is torn down
+// automatically when the test completes.
+func NewTestNATSURL(t testing.TB) string {
 	t.Helper()
 	ctx := context.Background()
 
@@ -33,7 +33,16 @@ func NewTestNATS(t testing.TB) (*nats.Conn, jetstream.JetStream) {
 		t.Fatalf("get nats connection string: %v", err)
 	}
 
-	conn, err := nats.Connect(url)
+	return url
+}
+
+// NewTestNATS starts a throwaway NATS server with JetStream enabled and
+// returns a connected *nats.Conn plus its JetStream handle. The container
+// and connection are torn down automatically when the test completes.
+func NewTestNATS(t testing.TB) (*nats.Conn, jetstream.JetStream) {
+	t.Helper()
+
+	conn, err := nats.Connect(NewTestNATSURL(t))
 	if err != nil {
 		t.Fatalf("connect to test nats: %v", err)
 	}
