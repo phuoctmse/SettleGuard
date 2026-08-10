@@ -135,10 +135,14 @@ reviewed and functional):
 
 - Naming: `service/<name>` for a whole service (e.g. `service/ledger-service`),
   `step/<short-description>` for repo-level steps (e.g. `step/repo-scaffolding`)
+- Every commit lands on the branch matching its scope — don't commit
+  cross-scope work (e.g. a different service, or a repo-level doc change)
+  onto a branch it doesn't belong to
 - Work happens on the branch; commit freely as you go (small/messy commits —
   typos, retries, WIP — are fine, squash merge cleans it up later)
 - Merge to `main` via **squash merge**, not a merge commit — this collapses
   the branch's messy commit history into one clean commit per service/step
   on `main`
-- Delete the branch after merge
+- **Keep the branch after merge — never delete it** (as of 2026-08-10, this
+  reverses the earlier "delete after merge" convention)
 - `main` should always be in a working state — nothing half-finished merged in
