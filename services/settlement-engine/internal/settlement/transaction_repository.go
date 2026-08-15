@@ -12,6 +12,9 @@ import (
 	"github.com/phuoctmse/settleguard/settlement-engine/internal/risk"
 )
 
+var _ risk.VelocityLimiter = (*TransactionRepository)(nil)
+var _ risk.BlocklistChecker = (*TransactionRepository)(nil)
+
 // Transaction status values. Hold is a terminal-for-now state (no
 // resolution path yet in this MVP); PendingSettlement transactions are
 // picked up by the next settlement.RunBatch; Settled is set once batched.
@@ -131,6 +134,40 @@ func triggeredRuleNames(outcomes []risk.RuleOutcome) []string {
 		}
 	}
 	return rules
+}
+
+// CountRecentTransactions counts how many transactions accountID has been
+// party to (via transaction_accounts) since the given time. Satisfies
+// risk.VelocityLimiter.
+func (r *TransactionRepository) CountRecentTransactions(ctx context.Context, accountID uuid.UUID, since time.Time) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT count(*) FROM transaction_accounts WHERE account_id = $1 AND created_at >= $2
+	`, accountID, since).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count recent transactions for account %s: %w", accountID, err)
+	}
+	return count, nil
+}
+
+// IsBlocked reports whether any of accountIDs has an 'account'-scoped
+// blocklist entry. Satisfies risk.BlocklistChecker.
+func (r *TransactionRepository) IsBlocked(ctx context.Context, accountIDs []uuid.UUID) (bool, error) {
+	ids := make([]string, len(accountIDs))
+	for i, id := range accountIDs {
+		ids[i] = id.String()
+	}
+
+	var blocked bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM blocklist WHERE entity_type = 'account' AND entity_id = ANY($1::uuid[])
+		)
+	`, ids).Scan(&blocked)
+	if err != nil {
+		return false, fmt.Errorf("check blocklist: %w", err)
+	}
+	return blocked, nil
 }
 
 func insertRiskScoredOutboxEvent(ctx context.Context, tx *sql.Tx, payload RiskScoredPayload) error {
