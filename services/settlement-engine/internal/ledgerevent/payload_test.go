@@ -2,6 +2,7 @@ package ledgerevent_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -84,6 +85,44 @@ func TestAccountIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ledgerevent.AccountIDs(tt.entries))
+		})
+	}
+}
+
+func TestOccurredAt(t *testing.T) {
+	earlier := time.Date(2026, 8, 15, 10, 0, 0, 0, time.UTC)
+	later := earlier.Add(5 * time.Minute)
+
+	tests := []struct {
+		name    string
+		entries []ledgerevent.OutboxPayloadEntry
+		want    time.Time
+	}{
+		{
+			name:    "no entries",
+			entries: nil,
+			want:    time.Time{},
+		},
+		{
+			name: "single entry",
+			entries: []ledgerevent.OutboxPayloadEntry{
+				{CreatedAt: earlier},
+			},
+			want: earlier,
+		},
+		{
+			name: "returns the earliest entry regardless of order",
+			entries: []ledgerevent.OutboxPayloadEntry{
+				{CreatedAt: later},
+				{CreatedAt: earlier},
+			},
+			want: earlier,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, tt.want.Equal(ledgerevent.OccurredAt(tt.entries)))
 		})
 	}
 }

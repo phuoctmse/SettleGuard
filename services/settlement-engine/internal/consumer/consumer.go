@@ -70,7 +70,7 @@ func (c *Consumer) handleMessage(msg jetstream.Msg) {
 		ID:         payload.TransactionID,
 		AccountIDs: accountIDs,
 		Amount:     amount,
-		OccurredAt: time.Now(),
+		OccurredAt: ledgerevent.OccurredAt(payload.Entries),
 	})
 	if err != nil {
 		log.Printf("consumer: score transaction %s: %v", payload.TransactionID, err)
