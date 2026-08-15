@@ -1,4 +1,4 @@
-module github.com/phuoctmse/settleguard/accounts-service
+module github.com/phuoctmse/settleguard/settlement-engine
 
 go 1.26.2
 
