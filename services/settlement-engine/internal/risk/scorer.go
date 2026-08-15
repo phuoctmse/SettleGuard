@@ -37,7 +37,11 @@ type RuleOutcome struct {
 	Detail    string
 }
 
-// RiskScore is the result of scoring one TransactionInput.
+// RiskScore stutters with the package name by design -- it's an exact type
+// name mandated by the MVP plan and used unchanged across settlement,
+// consumer, and this package's own tests.
+//
+//nolint:revive
 type RiskScore struct {
 	TransactionID uuid.UUID
 	Score         int

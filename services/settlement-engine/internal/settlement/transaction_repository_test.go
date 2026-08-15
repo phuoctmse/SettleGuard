@@ -51,8 +51,8 @@ func TestRecordScore_PersistsPassingTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	var (
-		amount int64
-		score  int
+		amount           int64
+		score            int
 		decision, status string
 	)
 	err = db.QueryRow(`SELECT amount, score, decision, status FROM transactions WHERE id = $1`, txID).

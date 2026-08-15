@@ -26,7 +26,10 @@ type Settlement struct {
 }
 
 // SettlementFinalizedPayload is the JSON body written to outbox_events for
-// a settlement.finalized event.
+// a settlement.finalized event. Stutters with the package name by design --
+// an exact type name mandated by the MVP plan.
+//
+//nolint:revive
 type SettlementFinalizedPayload struct {
 	SettlementID     uuid.UUID   `json:"settlement_id"`
 	TransactionIDs   []uuid.UUID `json:"transaction_ids"`
@@ -36,6 +39,10 @@ type SettlementFinalizedPayload struct {
 }
 
 // SettlementRepository batches pending transactions into Settlements.
+// Stutters with the package name by design, matching TransactionRepository's
+// naming and mandated by the MVP plan.
+//
+//nolint:revive
 type SettlementRepository struct {
 	db *sql.DB
 }
