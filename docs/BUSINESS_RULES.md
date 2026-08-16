@@ -89,6 +89,17 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   **Ở đâu:** `services/settlement-engine/internal/settlement`
   (`SettlementRepository.RunBatch`).
 
+## notification-service
+
+- **NOTIFICATION-01** — Chỉ tạo notification cho `transaction.risk-scored`
+  khi `decision == "hold"`; bỏ qua (Ack, không ghi) khi `decision ==
+  "pass"`. `settlement.finalized` luôn tạo notification.
+  **Vì sao:** charter chỉ yêu cầu cảnh báo cho "risk holds" và settlement
+  đã hoàn tất, không phải mọi giao dịch đã chấm điểm — ghi cả `pass` sẽ
+  làm bảng `notifications` phình lên với dữ liệu không phải cảnh báo thật.
+  **Ở đâu:** `services/notification-service/internal/consumer`
+  (`decide_risk_scored`).
+
 ## Quy tắc xuyên suốt (cross-cutting)
 
 - **CROSS-01** — Mọi consumer của NATS JetStream event phải idempotent —
