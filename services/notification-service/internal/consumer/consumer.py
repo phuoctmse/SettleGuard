@@ -77,7 +77,13 @@ class Consumer:
             await msg.term()
             return
 
-        record = decide(payload)
+        try:
+            record = decide(payload)
+        except (KeyError, ValueError):
+            logger.error("consumer: malformed payload on %s, terminating message", msg.subject)
+            await msg.term()
+            return
+
         if record is not None:
             try:
                 self._repo.record(record["type"], record["subject_id"], record["payload"])

@@ -27,6 +27,72 @@ def test_decide_settlement_finalized_always_returns_record():
     assert record == {"type": "settlement_finalized", "subject_id": uuid.UUID(settlement_id), "payload": payload}
 
 
+class _FakeMsg:
+    def __init__(self, data: bytes, subject: str = "transaction.risk-scored"):
+        self.data = data
+        self.subject = subject
+        self.acked = False
+        self.naked = False
+        self.termed = False
+
+    async def ack(self):
+        self.acked = True
+
+    async def nak(self):
+        self.naked = True
+
+    async def term(self):
+        self.termed = True
+
+
+class _FakeRepo:
+    def __init__(self):
+        self.calls = []
+
+    def record(self, type_, subject_id, payload):
+        self.calls.append((type_, subject_id, payload))
+        return True
+
+
+async def test_handle_terminates_message_on_schema_malformed_payload():
+    import json
+
+    from internal.consumer.consumer import Consumer
+
+    repo = _FakeRepo()
+    consumer = Consumer(repo)
+    # valid JSON, but missing "transaction_id" -> KeyError inside decide_risk_scored
+    msg = _FakeMsg(json.dumps({"decision": "hold", "score": 40}).encode())
+
+    await consumer._handle_risk_scored(msg)
+
+    assert msg.termed is True
+    assert msg.acked is False
+    assert msg.naked is False
+    assert repo.calls == []
+
+
+async def test_handle_terminates_message_on_non_uuid_id_field():
+    import json
+
+    from internal.consumer.consumer import Consumer
+
+    repo = _FakeRepo()
+    consumer = Consumer(repo)
+    # valid JSON, well-formed keys, but "settlement_id" is not a valid UUID -> ValueError
+    msg = _FakeMsg(
+        json.dumps({"settlement_id": "not-a-uuid", "transaction_count": 3}).encode(),
+        subject="settlement.finalized",
+    )
+
+    await consumer._handle_settlement_finalized(msg)
+
+    assert msg.termed is True
+    assert msg.acked is False
+    assert msg.naked is False
+    assert repo.calls == []
+
+
 import asyncio
 import json
 
