@@ -5,7 +5,7 @@ from internal.db.connection import connect, migrate
 
 def test_migrate_creates_notifications_table():
     with PostgresContainer("postgres:18-alpine") as postgres:
-        dsn = postgres.get_connection_url(driver=None)
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
 
         migrate(dsn)
 
@@ -28,7 +28,7 @@ def test_migrate_creates_notifications_table():
 
 def test_migrate_is_idempotent():
     with PostgresContainer("postgres:18-alpine") as postgres:
-        dsn = postgres.get_connection_url(driver=None)
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
 
         migrate(dsn)
         migrate(dsn)  # must not raise

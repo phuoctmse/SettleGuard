@@ -108,7 +108,9 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   khi lỗi mạng/consumer crash trước khi ack); consumer không tự chịu được
   trùng lặp sẽ tính sai dữ liệu tài chính.
   **Ở đâu:** mọi package `internal/consumer` + bảng dedup
-  `processed_*_transactions` ở từng service.
+  `processed_*_transactions` ở từng service; hoặc constraint UNIQUE trực
+  tiếp trên bảng nghiệp vụ khi bảng đó tự nhiên có khoá duy nhất theo
+  event (vd notification-service — xem NOTIFICATION-01).
 
 - **CROSS-02** — Ghi dữ liệu vào DB và chuẩn bị publish event phải nằm
   trong cùng một DB transaction (outbox pattern) — không được tách rời

@@ -27,6 +27,11 @@ def test_decide_settlement_finalized_always_returns_record():
     assert record == {"type": "settlement_finalized", "subject_id": uuid.UUID(settlement_id), "payload": payload}
 
 
+# _FakeMsg/_FakeRepo are a deliberate, narrow exception to this repo's
+# "no mocks" convention: asserting term()-not-ack/nak against a real
+# JetStream message requires awkward negative-space polling. Everything
+# else in this file (and the rest of the service's tests) uses real
+# Postgres/NATS via testcontainers.
 class _FakeMsg:
     def __init__(self, data: bytes, subject: str = "transaction.risk-scored"):
         self.data = data
@@ -93,6 +98,24 @@ async def test_handle_terminates_message_on_non_uuid_id_field():
     assert repo.calls == []
 
 
+async def test_handle_terminates_message_on_non_object_payload():
+    import json
+
+    from internal.consumer.consumer import Consumer
+
+    repo = _FakeRepo()
+    consumer = Consumer(repo)
+    # valid JSON, but a top-level array, not an object -> payload.get(...)/payload[...] would raise
+    msg = _FakeMsg(json.dumps([1, 2]).encode())
+
+    await consumer._handle_risk_scored(msg)
+
+    assert msg.termed is True
+    assert msg.acked is False
+    assert msg.naked is False
+    assert repo.calls == []
+
+
 import asyncio
 import json
 
@@ -136,7 +159,7 @@ async def _wait_until(predicate, timeout=5.0, interval=0.1):
 
 async def test_consumer_records_hold_skips_pass_and_dedupes(nats_url):
     with PostgresContainer("postgres:18-alpine") as postgres:
-        dsn = postgres.get_connection_url(driver=None)
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
         migrate(dsn)
         conn = db_connect(dsn)
         repo = NotificationRepository(conn)

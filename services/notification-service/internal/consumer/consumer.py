@@ -77,6 +77,11 @@ class Consumer:
             await msg.term()
             return
 
+        if not isinstance(payload, dict):
+            logger.error("consumer: non-object payload on %s, terminating message", msg.subject)
+            await msg.term()
+            return
+
         try:
             record = decide(payload)
         except (KeyError, ValueError):
