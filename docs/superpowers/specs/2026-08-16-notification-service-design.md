@@ -82,12 +82,20 @@ một settlement chỉ finalize một lần).
 
 ## 4. Xử lý event
 
-Một durable JetStream consumer duy nhất (`notification-service-alerts`)
-trên stream `SETTLEMENT_EVENTS`, filter 2 subject:
-`transaction.risk-scored` và `settlement.finalized`. `DeliverAllPolicy`
-(nhất quán với 2 consumer Go hiện có trong hệ thống) — muốn có đủ lịch sử
-hold/settlement kể cả khi service này khởi động sau các event đã được
-publish.
+Hai durable JetStream consumer trên stream `SETTLEMENT_EVENTS`, mỗi
+consumer filter một subject riêng:
+`notification-service-risk-hold` (filter `transaction.risk-scored`) và
+`notification-service-settlement-finalized` (filter
+`settlement.finalized`). Ban đầu định làm một consumer duy nhất filter cả
+2 subject, nhưng `nats-py` (client legacy `nats.js`, xem `ConsumerConfig`)
+chỉ hỗ trợ `filter_subject` số ít, không có `filter_subjects` số nhiều
+như NATS server 2.10+ hỗ trợ — tách 2 consumer vừa tránh phụ thuộc vào
+tính năng không chắc client hỗ trợ, vừa khớp đúng pattern
+một-consumer-một-subject mà 2 consumer Go hiện có trong hệ thống
+(`ledger-service`, `accounts-service`, `settlement-engine`) đều đang theo.
+Cả hai đều dùng `DeliverAllPolicy` (nhất quán với các consumer Go) — muốn
+có đủ lịch sử hold/settlement kể cả khi service này khởi động sau các
+event đã được publish.
 
 Logic `handle_message`:
 
