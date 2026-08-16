@@ -1,0 +1,5 @@
+psycopg[binary]>=3.1,<4
+nats-py>=2.6,<3
+pytest>=8.0,<9
+pytest-asyncio>=0.23,<1
+testcontainers[postgres]>=4.0,<5
