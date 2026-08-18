@@ -41,6 +41,23 @@ func TotalAmount(entries []OutboxPayloadEntry) int64 {
 	return total
 }
 
+// OccurredAt returns the earliest entry's CreatedAt -- ledger-service's own
+// record of when the transaction actually happened, as opposed to whenever
+// a consumer gets around to processing the event. This distinction matters
+// for consumers computing time-windowed rules (e.g. settlement-engine's
+// velocity limit): using processing time instead would make a fast replay
+// of old events (consumer.DeliverAllPolicy on first startup, or catch-up
+// after downtime) collapse days of real activity into one scoring window.
+func OccurredAt(entries []OutboxPayloadEntry) time.Time {
+	var earliest time.Time
+	for i, e := range entries {
+		if i == 0 || e.CreatedAt.Before(earliest) {
+			earliest = e.CreatedAt
+		}
+	}
+	return earliest
+}
+
 // AccountIDs returns the distinct account IDs touched across entries, in
 // first-seen order.
 func AccountIDs(entries []OutboxPayloadEntry) []uuid.UUID {

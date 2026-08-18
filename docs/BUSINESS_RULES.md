@@ -73,6 +73,24 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   **Ở đâu:** `services/settlement-engine/internal/settlement`
   (`TransactionRepository.CountRecentTransactions`).
 
+- **SETTLEMENT-02b** — Mốc thời gian dùng làm biên cửa sổ trượt của
+  velocity limit (`TransactionInput.OccurredAt`) phải lấy từ thời điểm sự
+  kiện gốc thực sự xảy ra (`ledger.entry-recorded`'s `entries[].created_at`
+  — ledger-service tự ghi tại thời điểm INSERT), **không phải** thời điểm
+  consumer xử lý message (`time.Now()`).
+  **Vì sao:** consumer dùng `DeliverAllPolicy`, nên lần đầu khởi động hoặc
+  phục hồi sau downtime sẽ replay nhanh toàn bộ backlog `LEDGER_EVENTS`
+  trong vài giây. Nếu dùng thời điểm xử lý, nhiều giao dịch hợp lệ trải
+  dài nhiều ngày thực tế sẽ bị đếm dồn vào cùng một cửa sổ ngắn, kích hoạt
+  hold sai (false positive) cho giao dịch không hề rủi ro — vô hiệu hoá
+  chính cơ chế chống gian lận mà rule này sinh ra để bảo vệ. Phát hiện qua
+  soát nghiệp vụ `business-qa` 2026-08-15, đã sửa tại
+  `services/settlement-engine/internal/consumer/consumer.go`
+  (dùng `ledgerevent.OccurredAt(payload.Entries)` thay vì `time.Now()`).
+  **Ở đâu:** `services/settlement-engine/internal/consumer`
+  (`handleMessage`), `services/settlement-engine/internal/ledgerevent`
+  (`OccurredAt`).
+
 - **SETTLEMENT-03** — `Score` cộng dồn theo trọng số cố định của từng rule
   trigger, cap tối đa tại 100.
   **Vì sao:** `Score` dùng để audit/so sánh mức độ rủi ro tương đối giữa
