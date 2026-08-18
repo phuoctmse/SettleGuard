@@ -89,6 +89,17 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   **Ở đâu:** `services/settlement-engine/internal/settlement`
   (`SettlementRepository.RunBatch`).
 
+## notification-service
+
+- **NOTIFICATION-01** — Chỉ tạo notification cho `transaction.risk-scored`
+  khi `decision == "hold"`; bỏ qua (Ack, không ghi) khi `decision ==
+  "pass"`. `settlement.finalized` luôn tạo notification.
+  **Vì sao:** charter chỉ yêu cầu cảnh báo cho "risk holds" và settlement
+  đã hoàn tất, không phải mọi giao dịch đã chấm điểm — ghi cả `pass` sẽ
+  làm bảng `notifications` phình lên với dữ liệu không phải cảnh báo thật.
+  **Ở đâu:** `services/notification-service/internal/consumer`
+  (`decide_risk_scored`).
+
 ## Quy tắc xuyên suốt (cross-cutting)
 
 - **CROSS-01** — Mọi consumer của NATS JetStream event phải idempotent —
@@ -97,7 +108,9 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   khi lỗi mạng/consumer crash trước khi ack); consumer không tự chịu được
   trùng lặp sẽ tính sai dữ liệu tài chính.
   **Ở đâu:** mọi package `internal/consumer` + bảng dedup
-  `processed_*_transactions` ở từng service.
+  `processed_*_transactions` ở từng service; hoặc constraint UNIQUE trực
+  tiếp trên bảng nghiệp vụ khi bảng đó tự nhiên có khoá duy nhất theo
+  event (vd notification-service — xem NOTIFICATION-01).
 
 - **CROSS-02** — Ghi dữ liệu vào DB và chuẩn bị publish event phải nằm
   trong cùng một DB transaction (outbox pattern) — không được tách rời
