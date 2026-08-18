@@ -19,6 +19,26 @@ services:
     volumes:
       - accounts_dev_data:/var/lib/postgresql
 
+  settlement-postgres:
+    image: postgres:18-alpine
+    container_name: settleguard-settlement-dev
+    env_file:
+      - ../../services/settlement-engine/.env
+    ports:
+      - "5435:5432"
+    volumes:
+      - settlement_dev_data:/var/lib/postgresql
+
+  notification-postgres:
+    image: postgres:18-alpine
+    container_name: settleguard-notification-dev
+    env_file:
+      - ../../services/notification-service/.env
+    ports:
+      - "5436:5432"
+    volumes:
+      - notification_dev_data:/var/lib/postgresql
+
   nats:
     image: nats:2.10-alpine
     container_name: settleguard-nats-dev
@@ -37,4 +57,6 @@ services:
 volumes:
   ledger_dev_data:
   accounts_dev_data:
+  settlement_dev_data:
+  notification_dev_data:
   nats_dev_data:

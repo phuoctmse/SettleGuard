@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`services/ledger-service` and `services/accounts-service` have working
-MVPs (see each service's README.md for build/lint/test/run commands). The
-remaining two services (`notification-service`, `settlement-engine`) and
-`mobile-app` are still scaffolds with no code. As each is implemented, add
-its build/lint/test commands to this file rather than assuming conventions
-from the stack.
+`services/ledger-service`, `services/accounts-service`, and
+`services/settlement-engine` have working MVPs (see each service's
+README.md for build/lint/test/run commands). The remaining service
+(`notification-service`) and `mobile-app` are still scaffolds with no
+code. As each is implemented, add its build/lint/test commands to this
+file rather than assuming conventions from the stack.
 
 ## What SettleGuard Is
 
@@ -40,9 +40,12 @@ pure-Go client). `ledger-service` publishes `ledger.entry-recorded` via a
 transactional outbox pattern; `accounts-service` consumes it to maintain
 `Account.balance` (`Σcredit − Σdebit`), idempotent via a processed-transaction
 dedup table, and itself publishes `account.updated` (same outbox pattern,
-own `ACCOUNTS_EVENTS` stream) on every account mutation. No consumer of
-`account.updated` exists yet. `settlement-engine`'s consumer of
-`ledger.entry-recorded` is still pending.
+own `ACCOUNTS_EVENTS` stream) on every account mutation. `settlement-engine`
+also consumes `ledger.entry-recorded` (durable consumer
+`settlement-engine-risk-scoring`), running rule-based risk scoring and
+publishing `transaction.risk-scored` and `settlement.finalized` via its own
+outbox pattern (`SETTLEMENT_EVENTS` stream). No consumer of `account.updated`
+exists yet.
 
 - **`services/accounts-service`** (Go, Postgres) — owns party/account
   identity, balances-of-obligation, and account status. Publishes
