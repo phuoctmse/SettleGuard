@@ -85,3 +85,6 @@ coverage.out
 
 # --- Git worktrees (scratch, per-branch working dirs) ---
 /.worktrees/
+
+# --- Superpowers subagent-driven-development scratch (ledgers, briefs, reports) ---
+/.superpowers/
