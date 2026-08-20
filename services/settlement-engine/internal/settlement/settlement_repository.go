@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 // only ever contains transactions that already passed risk-scoring, so it
 // always finalizes.
 const EventSettlementFinalized = "settlement.finalized"
+
+// ErrSettlementNotFound is returned by Get when the settlement id doesn't
+// exist.
+var ErrSettlementNotFound = errors.New("settlement not found")
 
 // Settlement is one batch of transactions grouped for payout.
 type Settlement struct {
@@ -147,6 +152,73 @@ func (r *SettlementRepository) RunBatch(ctx context.Context) (*Settlement, error
 		TotalAmount:      totalAmount,
 		CreatedAt:        createdAt,
 	}, nil
+}
+
+// Get returns one settlement by id, including its transaction_ids joined
+// from settlement_transactions.
+func (r *SettlementRepository) Get(ctx context.Context, id uuid.UUID) (*Settlement, error) {
+	var s Settlement
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, transaction_count, total_amount, created_at FROM settlements WHERE id = $1
+	`, id).Scan(&s.ID, &s.TransactionCount, &s.TotalAmount, &s.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSettlementNotFound
+		}
+		return nil, fmt.Errorf("get settlement: %w", err)
+	}
+
+	ids, err := r.transactionIDsFor(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.TransactionIDs = ids
+	return &s, nil
+}
+
+// List returns every settlement, most recently created first.
+func (r *SettlementRepository) List(ctx context.Context) ([]Settlement, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, transaction_count, total_amount, created_at FROM settlements ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list settlements: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Settlement
+	for rows.Next() {
+		var s Settlement
+		if err := rows.Scan(&s.ID, &s.TransactionCount, &s.TotalAmount, &s.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan settlement: %w", err)
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// transactionIDsFor's per-settlement query (rather than a join) is
+// acceptable at MVP scale: settlement runs are infrequent
+// (SETTLEMENT_BATCH_INTERVAL_SECONDS, default 60s) and this has one
+// caller, a mobile app screen with no pagination yet.
+func (r *SettlementRepository) transactionIDsFor(ctx context.Context, settlementID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT transaction_id FROM settlement_transactions WHERE settlement_id = $1
+	`, settlementID)
+	if err != nil {
+		return nil, fmt.Errorf("list transaction_ids for settlement %s: %w", settlementID, err)
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan transaction_id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func uuidsToStrings(ids []uuid.UUID) []string {
