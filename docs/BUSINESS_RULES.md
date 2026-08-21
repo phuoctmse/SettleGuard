@@ -107,6 +107,19 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   **Ở đâu:** `services/settlement-engine/internal/settlement`
   (`SettlementRepository.RunBatch`).
 
+- **SETTLEMENT-05** — `POST /transactions/{id}/approve` và
+  `POST /transactions/{id}/reject` chỉ hợp lệ khi transaction đang ở status
+  `held`; gọi trên bất kỳ status nào khác trả về `409`. Approve chuyển
+  `held` → `pending_settlement` (transaction vào batch settle tiếp theo,
+  giống hệt một transaction đã `pass` risk-scoring). Reject chuyển `held`
+  → `rejected`, terminal — không bao giờ vào batch.
+  **Vì sao:** giữ state machine đơn giản (không thêm status "approved"
+  song song với "pending_settlement" vốn đã mang đúng ý nghĩa "sẵn sàng
+  settle"); `rejected` phải terminal vì đây là quyết định con người ghi đè
+  lên risk hold, không phải trạng thái tạm.
+  **Ở đâu:** `services/settlement-engine/internal/settlement`
+  (`TransactionRepository.Approve`/`.Reject`).
+
 ## notification-service
 
 - **NOTIFICATION-01** — Chỉ tạo notification cho `transaction.risk-scored`

@@ -62,7 +62,7 @@ func main() {
 	}
 	if err := broker.EnsureStream(ctx, js, jetstream.StreamConfig{
 		Name:     broker.SettlementEventsStream,
-		Subjects: []string{"settlement.>", "transaction.risk-scored"},
+		Subjects: []string{"settlement.>", "transaction.risk-scored", "transaction.resolved"},
 		Storage:  jetstream.FileStorage,
 	}); err != nil {
 		log.Fatalf("ensure settlement events stream: %v", err)
@@ -96,7 +96,8 @@ func main() {
 		}
 	}()
 
-	router := api.NewRouter()
+	handlers := api.NewHandlers(transactions, settlements)
+	router := api.NewRouter(handlers)
 
 	addr := os.Getenv("LISTEN_ADDR")
 	if addr == "" {
