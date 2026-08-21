@@ -127,3 +127,124 @@ func TestRecordScore_IdempotentOnSameTransactionID(t *testing.T) {
 	assert.Equal(t, 1, txCount)
 	assert.Equal(t, 1, outboxCount)
 }
+
+func TestGetTransaction(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	txID := uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, passScore(txID)))
+
+	got, err := repo.Get(context.Background(), txID)
+
+	require.NoError(t, err)
+	assert.Equal(t, txID, got.ID)
+	assert.Equal(t, []uuid.UUID{acc}, got.AccountIDs)
+	assert.Equal(t, settlement.StatusPendingSettlement, got.Status)
+}
+
+func TestGetTransaction_NotFound(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	_, err := repo.Get(context.Background(), uuid.New())
+
+	assert.ErrorIs(t, err, settlement.ErrTransactionNotFound)
+}
+
+func TestListByStatus_ReturnsOnlyMatchingStatus(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	heldID, passID := uuid.New(), uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, holdScore(heldID)))
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, passScore(passID)))
+
+	held, err := repo.ListByStatus(context.Background(), settlement.StatusHeld)
+
+	require.NoError(t, err)
+	require.Len(t, held, 1)
+	assert.Equal(t, heldID, held[0].ID)
+	assert.Equal(t, []string{"velocity_limit"}, held[0].TriggeredRules)
+}
+
+func TestApprove_HeldToPendingSettlement(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	txID := uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, holdScore(txID)))
+
+	got, err := repo.Approve(context.Background(), txID)
+
+	require.NoError(t, err)
+	assert.Equal(t, settlement.StatusPendingSettlement, got.Status)
+
+	var payloadRaw []byte
+	require.NoError(t, db.QueryRow(`SELECT payload FROM outbox_events WHERE subject = $1 AND payload->>'transaction_id' = $2`,
+		settlement.EventTransactionResolved, txID.String()).Scan(&payloadRaw))
+	var payload settlement.ResolvedPayload
+	require.NoError(t, json.Unmarshal(payloadRaw, &payload))
+	assert.Equal(t, "approved", payload.Resolution)
+}
+
+func TestReject_HeldToRejected(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	txID := uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, holdScore(txID)))
+
+	got, err := repo.Reject(context.Background(), txID)
+
+	require.NoError(t, err)
+	assert.Equal(t, settlement.StatusRejected, got.Status)
+
+	var payloadRaw []byte
+	require.NoError(t, db.QueryRow(`SELECT payload FROM outbox_events WHERE subject = $1 AND payload->>'transaction_id' = $2`,
+		settlement.EventTransactionResolved, txID.String()).Scan(&payloadRaw))
+	var payload settlement.ResolvedPayload
+	require.NoError(t, json.Unmarshal(payloadRaw, &payload))
+	assert.Equal(t, "rejected", payload.Resolution)
+}
+
+func TestApprove_NotHeld_ReturnsError(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	txID := uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, passScore(txID)))
+
+	_, err := repo.Approve(context.Background(), txID)
+
+	assert.ErrorIs(t, err, settlement.ErrTransactionNotHeld)
+}
+
+func TestReject_AlreadyRejected_ReturnsError(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	txID := uuid.New()
+	acc := uuid.New()
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, holdScore(txID)))
+	_, err := repo.Reject(context.Background(), txID)
+	require.NoError(t, err)
+
+	_, err = repo.Reject(context.Background(), txID)
+
+	assert.ErrorIs(t, err, settlement.ErrTransactionNotHeld)
+}
+
+func TestApprove_NotFound_ReturnsError(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+
+	_, err := repo.Approve(context.Background(), uuid.New())
+
+	assert.ErrorIs(t, err, settlement.ErrTransactionNotFound)
+}
