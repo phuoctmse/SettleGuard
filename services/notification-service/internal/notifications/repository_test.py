@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from testcontainers.postgres import PostgresContainer
@@ -66,4 +67,63 @@ def test_record_rolls_back_on_error_so_connection_stays_usable():
         inserted = repo.record("risk_hold", other_tx_id, {"decision": "hold"})
 
         assert inserted is True
+        conn.close()
+
+
+def test_list_returns_most_recent_first():
+    with PostgresContainer("postgres:18-alpine") as postgres:
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
+        migrate(dsn)
+        repo, conn = _repo(dsn)
+        older_id, newer_id = uuid.uuid4(), uuid.uuid4()
+
+        repo.record("risk_hold", older_id, {"decision": "hold"})
+        repo.record("settlement_finalized", newer_id, {"transaction_count": 1})
+
+        result = repo.list()
+
+        assert [n["subject_id"] for n in result] == [str(newer_id), str(older_id)]
+        conn.close()
+
+
+def test_list_filters_by_type():
+    with PostgresContainer("postgres:18-alpine") as postgres:
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
+        migrate(dsn)
+        repo, conn = _repo(dsn)
+        hold_id, settlement_id = uuid.uuid4(), uuid.uuid4()
+        repo.record("risk_hold", hold_id, {"decision": "hold"})
+        repo.record("settlement_finalized", settlement_id, {"transaction_count": 1})
+
+        result = repo.list(type_="risk_hold")
+
+        assert [n["subject_id"] for n in result] == [str(hold_id)]
+        conn.close()
+
+
+def test_list_filters_by_since():
+    with PostgresContainer("postgres:18-alpine") as postgres:
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
+        migrate(dsn)
+        repo, conn = _repo(dsn)
+        repo.record("risk_hold", uuid.uuid4(), {"decision": "hold"})
+
+        future_cutoff = datetime.now(timezone.utc) + timedelta(hours=1)
+        result = repo.list(since=future_cutoff)
+
+        assert result == []
+        conn.close()
+
+
+def test_list_respects_limit():
+    with PostgresContainer("postgres:18-alpine") as postgres:
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
+        migrate(dsn)
+        repo, conn = _repo(dsn)
+        for _ in range(3):
+            repo.record("risk_hold", uuid.uuid4(), {"decision": "hold"})
+
+        result = repo.list(limit=2)
+
+        assert len(result) == 2
         conn.close()

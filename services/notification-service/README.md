@@ -68,5 +68,8 @@ pytest internal/consumer/consumer_test.py::test_consumer_records_hold_skips_pass
 
 ## API
 
-- `GET /health` — health check. This service is event-driven end-to-end;
-  there is no other HTTP surface.
+- `GET /health` — health check.
+- `GET /notifications?type=&since=&limit=` — list notifications, most
+  recent first. `type` (`risk_hold` | `settlement_finalized`) and `since`
+  (ISO 8601 timestamp) are optional filters. `limit` defaults to 50,
+  capped at 200. `400` if `since`/`limit` fail to parse.
