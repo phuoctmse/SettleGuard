@@ -7,6 +7,7 @@ import { AccountListScreen } from '../screens/AccountListScreen';
 import { AccountDetailScreen } from '../screens/AccountDetailScreen';
 import { HeldTransactionsScreen } from '../screens/HeldTransactionsScreen';
 import { SettlementsScreen } from '../screens/SettlementsScreen';
+import { AlertsScreen } from '../screens/AlertsScreen';
 
 export type RootStackParamList = {
   ClientLookup: undefined;
@@ -14,6 +15,7 @@ export type RootStackParamList = {
   AccountDetail: { accountId: string };
   HeldTransactions: undefined;
   Settlements: undefined;
+  Alerts: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +34,7 @@ export function RootNavigator() {
               <View style={{ flexDirection: 'row' }}>
                 <Button title="Held" onPress={() => navigation.navigate('HeldTransactions')} />
                 <Button title="Settlements" onPress={() => navigation.navigate('Settlements')} />
+                <Button title="Alerts" onPress={() => navigation.navigate('Alerts')} />
               </View>
             ),
           })}
@@ -39,6 +42,7 @@ export function RootNavigator() {
         <Stack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ title: 'Account' }} />
         <Stack.Screen name="HeldTransactions" component={HeldTransactionsScreen} options={{ title: 'Held Transactions' }} />
         <Stack.Screen name="Settlements" component={SettlementsScreen} options={{ title: 'Settlements' }} />
+        <Stack.Screen name="Alerts" component={AlertsScreen} options={{ title: 'Alerts' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
