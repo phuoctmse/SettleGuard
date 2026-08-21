@@ -22,3 +22,15 @@ export function approveTransaction(id: string): Promise<void> {
 export function rejectTransaction(id: string): Promise<void> {
   return fetchJson<void>(`${env.settlementApiUrl}/transactions/${id}/reject`, { method: 'POST' });
 }
+
+export interface Settlement {
+  id: string;
+  transaction_ids: string[];
+  transaction_count: number;
+  total_amount: number;
+  created_at: string;
+}
+
+export function listSettlements(): Promise<Settlement[]> {
+  return fetchJson<Settlement[]>(`${env.settlementApiUrl}/settlements`);
+}
