@@ -34,7 +34,7 @@ async def main() -> None:
 
     addr = os.environ.get("LISTEN_ADDR", ":8083")
     host, port = addr.rsplit(":", 1)
-    server = create_server(host or "0.0.0.0", int(port))
+    server = create_server(host or "0.0.0.0", int(port), repo)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     print(f"notification-service listening on {addr}")
 
