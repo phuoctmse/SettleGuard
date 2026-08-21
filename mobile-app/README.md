@@ -57,7 +57,7 @@ npm test
 Run a single test file:
 
 ```bash
-npm test -- src/screens/AccountDetailScreen.test.tsx
+npm test -- src/screens/AccountListScreen.test.tsx
 ```
 
 ## Configuration
