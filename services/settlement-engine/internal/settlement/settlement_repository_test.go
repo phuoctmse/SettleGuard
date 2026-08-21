@@ -85,3 +85,52 @@ func TestRunBatch_NoopWhenNothingPending(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, result)
 }
+
+func TestGetSettlement(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+
+	pending := uuid.New()
+	insertTransactionWithStatus(t, db, pending, 1_000, settlement.StatusPendingSettlement)
+	seeded, err := repo.RunBatch(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, seeded)
+
+	got, err := repo.Get(context.Background(), seeded.ID)
+
+	require.NoError(t, err)
+	assert.Equal(t, seeded.TransactionCount, got.TransactionCount)
+	assert.Equal(t, seeded.TotalAmount, got.TotalAmount)
+	assert.ElementsMatch(t, seeded.TransactionIDs, got.TransactionIDs)
+}
+
+func TestGetSettlement_NotFound(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+
+	_, err := repo.Get(context.Background(), uuid.New())
+
+	assert.ErrorIs(t, err, settlement.ErrSettlementNotFound)
+}
+
+func TestListSettlements_MostRecentFirst(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+
+	insertTransactionWithStatus(t, db, uuid.New(), 1_000, settlement.StatusPendingSettlement)
+	first, err := repo.RunBatch(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, first)
+
+	insertTransactionWithStatus(t, db, uuid.New(), 2_000, settlement.StatusPendingSettlement)
+	second, err := repo.RunBatch(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, second)
+
+	list, err := repo.List(context.Background())
+
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	assert.Equal(t, second.ID, list[0].ID)
+	assert.Equal(t, first.ID, list[1].ID)
+}

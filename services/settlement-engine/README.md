@@ -43,9 +43,13 @@ each other (OR-based: any one triggering holds the transaction):
 summed and capped) is a separate informational/audit field — it does not
 drive the hold/pass decision.
 
-**Held transactions have no resolution path yet in this MVP.** They're
-persisted with `status='held'` and excluded from batching indefinitely;
-there's no admin action to release or reject one.
+**Held transactions are resolved via `POST /transactions/{id}/approve` or
+`/reject`** (see API section below) — `approve` moves a transaction back
+into the normal settlement flow (`pending_settlement`, behaves identically
+to a transaction that passed risk-scoring outright); `reject` moves it to
+the terminal `rejected` status, which never enters a batch. Both publish a
+`transaction.resolved` event. See `SETTLEMENT-05` in
+`docs/BUSINESS_RULES.md`.
 
 ## Settlement batching
 
@@ -63,12 +67,14 @@ already-passed transactions, so it always publishes `settlement.finalized`
   `ledger-service`) on durable consumer `settlement-engine-risk-scoring`.
   Idempotent via `processed_ledger_transactions`, dedup-keyed on
   `transaction_id`.
-- **Publishes** `transaction.risk-scored` and `settlement.finalized`, both
-  on stream `SETTLEMENT_EVENTS` (owned by this service), via the same
+- **Publishes** `transaction.risk-scored`, `settlement.finalized`, and
+  `transaction.resolved` (on `Approve`/`Reject`), all on stream
+  `SETTLEMENT_EVENTS` (owned by this service), via the same
   transactional-outbox + relay pattern as `ledger-service`/`accounts-service`
-  (`internal/outbox`), at-least-once with dedupe via `Nats-Msg-Id`. No
-  consumer of either event exists yet — `notification-service` and
-  `mobile-app` are still scaffolds.
+  (`internal/outbox`), at-least-once with dedupe via `Nats-Msg-Id`.
+  `notification-service` consumes `transaction.risk-scored` (hold decisions
+  only) and `settlement.finalized`; nothing consumes `transaction.resolved`
+  yet.
 
 ## Build
 
@@ -99,5 +105,17 @@ go test ./internal/risk/... -run TestScorer_Score_HoldOnVelocityLimit -v
 
 ## API
 
-- `GET /health` — health check. This service is event-driven end-to-end;
-  there is no other HTTP surface.
+- `GET /health` — health check.
+- `GET /transactions?status=<status>` — `200` list of Transaction filtered
+  by status (`pending_settlement` | `held` | `settled` | `rejected`),
+  most recently scored first. `400` if `status` is missing.
+- `GET /transactions/{id}` — `200` Transaction or `404`.
+- `POST /transactions/{id}/approve` — moves a `held` transaction to
+  `pending_settlement`. `200` updated Transaction, `404` if not found,
+  `409` if not currently `held`.
+- `POST /transactions/{id}/reject` — moves a `held` transaction to the
+  terminal `rejected` status. `200` updated Transaction, `404` if not
+  found, `409` if not currently `held`.
+- `GET /settlements` — `200` list of Settlement, most recently created
+  first.
+- `GET /settlements/{id}` — `200` Settlement or `404`.
