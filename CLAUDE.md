@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`services/ledger-service`, `services/accounts-service`, and
-`services/settlement-engine` have working MVPs (see each service's
-README.md for build/lint/test/run commands). The remaining service
-(`notification-service`) and `mobile-app` are still scaffolds with no
-code. As each is implemented, add its build/lint/test commands to this
+`services/ledger-service`, `services/accounts-service`,
+`services/settlement-engine`, and `services/notification-service` have
+working MVPs (see each service's README.md for build/lint/test/run
+commands). `mobile-app` is the only remaining piece still a scaffold with
+no code. As it's implemented, add its build/lint/test commands to this
 file rather than assuming conventions from the stack.
 
 ## What SettleGuard Is
