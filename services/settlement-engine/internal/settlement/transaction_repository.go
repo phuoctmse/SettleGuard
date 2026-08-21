@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -326,12 +327,28 @@ type rowScanner interface {
 
 func scanTransaction(row rowScanner) (*Transaction, error) {
 	var t Transaction
-	var triggeredRules []string
-	if err := row.Scan(&t.ID, &t.Amount, &t.Score, &t.Decision, &t.Status, &triggeredRules, &t.ScoredAt); err != nil {
+	// pgx's database/sql driver returns a TEXT[] column as its raw Postgres
+	// text literal (e.g. "{velocity_limit,blocklist}"), not a decoded
+	// []string -- parsePGTextArray unpacks it.
+	var triggeredRulesRaw string
+	if err := row.Scan(&t.ID, &t.Amount, &t.Score, &t.Decision, &t.Status, &triggeredRulesRaw, &t.ScoredAt); err != nil {
 		return nil, err
 	}
-	t.TriggeredRules = triggeredRules
+	t.TriggeredRules = parsePGTextArray(triggeredRulesRaw)
 	return &t, nil
+}
+
+// parsePGTextArray unpacks a Postgres TEXT[] wire literal like
+// "{velocity_limit,blocklist}" into its elements. Safe for this column's
+// values specifically -- rule names are plain snake_case identifiers with
+// no commas, braces, or quoting to worry about.
+func parsePGTextArray(s string) []string {
+	s = strings.TrimPrefix(s, "{")
+	s = strings.TrimSuffix(s, "}")
+	if s == "" {
+		return []string{}
+	}
+	return strings.Split(s, ",")
 }
 
 func (r *TransactionRepository) accountIDsFor(ctx context.Context, transactionID uuid.UUID) ([]uuid.UUID, error) {
