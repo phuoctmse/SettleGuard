@@ -39,13 +39,21 @@ IP. Emulators and simulators can use `localhost` without change.
 ### Run the app
 
 ```bash
-npx expo start
+npm start
 ```
 
-This opens the Expo CLI menu. Press:
+Runs on port `8090` (not Expo's default `8081`, which collides with
+`accounts-service`'s port — see the Configuration table below). Use
+`npm start` / `npm run android` / `npm run ios` / `npm run web` rather than
+`npx expo start` directly, so the port stays fixed. This opens the Expo CLI
+menu. Press:
 - `i` to open in iOS simulator
-- `a` to open in Android emulator
-- `j` to open in web (browser)
+- `a` to open in Android emulator (note: from an Android emulator, use
+  `10.0.2.2` instead of `localhost` in the four API URLs below — the
+  emulator's alias for the host machine)
+- `w` to open in web (browser) — note: the backend services need CORS
+  support for browser-based requests to succeed; this hasn't been added
+  yet, so `w` will fail with CORS errors as of this MVP
 - `s` to send the link to your phone (use Expo Go app)
 
 ## Run tests
