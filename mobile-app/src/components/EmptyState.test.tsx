@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react-native';
 
 import { EmptyState } from './EmptyState';
+import { colors } from '../theme';
 
 it('renders a loading message', async () => {
   const { findByText } = await render(<EmptyState status="loading" />);
@@ -15,4 +16,9 @@ it('renders the given error message', async () => {
 it('renders the given empty message', async () => {
   const { findByText } = await render(<EmptyState status="empty" message="No accounts for this client." />);
   expect(await findByText('No accounts for this client.')).toBeTruthy();
+});
+
+it('renders the error message in the danger color', async () => {
+  const { findByText } = await render(<EmptyState status="error" message="Failed to load accounts." />);
+  expect(await findByText('Failed to load accounts.')).toHaveStyle({ color: colors.danger });
 });

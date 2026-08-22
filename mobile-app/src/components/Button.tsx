@@ -14,6 +14,8 @@ export function Button({ title, onPress, disabled, variant = 'primary' }: Props)
   return (
     <Pressable
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,

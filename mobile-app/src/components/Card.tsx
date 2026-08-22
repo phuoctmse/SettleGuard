@@ -14,6 +14,7 @@ export function Card({ children, onPress, style }: Props) {
     return (
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
         style={({ pressed }) => [styles.card, style, pressed && styles.pressed]}
       >
         {children}

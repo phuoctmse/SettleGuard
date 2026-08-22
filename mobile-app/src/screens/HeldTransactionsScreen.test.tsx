@@ -83,3 +83,28 @@ it('shows an error message and does not disable other rows when approve fails', 
   expect(await findByText('Failed to approve transaction. Please try again.')).toBeTruthy();
   expect(getAllByText('Approve')).toHaveLength(2);
 });
+
+it('only disables the row being approved, not other rows, while the mutation is in flight', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
+    { id: 'txn-1', amount: 500, score: 0.9, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+    { id: 'txn-2', amount: 200, score: 0.5, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+  ]);
+  let resolveApprove: () => void;
+  (settlementApi.approveTransaction as jest.Mock).mockReturnValue(
+    new Promise<void>((resolve) => {
+      resolveApprove = () => resolve();
+    }),
+  );
+
+  const { findByText, getAllByText } = await renderWithQuery(<HeldTransactionsScreen />);
+
+  await findByText('Amount: 500 · Score: 0.9');
+
+  await fireEvent.press(getAllByText('Approve')[0]);
+
+  expect(await findByText('Approving…')).toBeTruthy();
+  expect(getAllByText('Approve')).toHaveLength(1); // row 2's button must still read "Approve", not be caught by a shared isPending
+
+  resolveApprove!();
+  await findByText('Amount: 200 · Score: 0.5'); // wait for the invalidate/refetch cycle to settle before the test ends
+});
