@@ -8,3 +8,14 @@ process.env.EXPO_PUBLIC_ACCOUNTS_API_URL ||= 'http://localhost:8081';
 process.env.EXPO_PUBLIC_LEDGER_API_URL ||= 'http://localhost:8080';
 process.env.EXPO_PUBLIC_SETTLEMENT_API_URL ||= 'http://localhost:8082';
 process.env.EXPO_PUBLIC_NOTIFICATION_API_URL ||= 'http://localhost:8083';
+
+// react-native-safe-area-context needs its dedicated Jest mock (its native
+// module has no real insets in the test environment) — required as soon as
+// any component uses useSafeAreaInsets, per the library's own setup docs.
+// The mock file is `export default {...}`; requiring it directly (bypassing
+// Babel's import-interop) yields { default: {...} }, so unwrap .default or
+// named imports like useSafeAreaInsets resolve to undefined.
+jest.mock('react-native-safe-area-context', () => {
+  const mock = require('react-native-safe-area-context/jest/mock');
+  return mock.default ?? mock;
+});

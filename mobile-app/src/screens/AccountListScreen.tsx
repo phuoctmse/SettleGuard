@@ -1,11 +1,15 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Text } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
 import { listAccounts } from '../api/accounts';
+import { ScreenContainer } from '../components/ScreenContainer';
+import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
+import { colors, typography } from '../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AccountList'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'AccountList'>;
 
 export function AccountListScreen({ navigation, route }: Props) {
   const { clientId } = route.params;
@@ -14,25 +18,34 @@ export function AccountListScreen({ navigation, route }: Props) {
     queryFn: () => listAccounts(clientId),
   });
 
-  if (isLoading) return <Text style={styles.pad}>Loading…</Text>;
-  if (error) return <Text style={styles.pad}>Failed to load accounts.</Text>;
+  if (isLoading) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="loading" />
+      </ScreenContainer>
+    );
+  }
+  if (error) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="error" message="Failed to load accounts." />
+      </ScreenContainer>
+    );
+  }
 
   return (
-    <FlatList
-      data={data}
-      keyExtractor={(a) => a.id}
-      renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => navigation.navigate('AccountDetail', { accountId: item.id })}>
-          <Text>{item.external_ref ?? item.id}</Text>
-          <Text>{item.status}</Text>
-        </Pressable>
-      )}
-      ListEmptyComponent={<Text style={styles.pad}>No accounts for this client.</Text>}
-    />
+    <ScreenContainer>
+      <FlatList
+        data={data}
+        keyExtractor={(a) => a.id}
+        renderItem={({ item }) => (
+          <Card onPress={() => navigation.navigate('AccountDetail', { accountId: item.id })}>
+            <Text style={[typography.body, { color: colors.textPrimary }]}>{item.external_ref ?? item.id}</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.status}</Text>
+          </Card>
+        )}
+        ListEmptyComponent={<EmptyState status="empty" message="No accounts for this client." />}
+      />
+    </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  pad: { padding: 16 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: '#eee' },
-});
