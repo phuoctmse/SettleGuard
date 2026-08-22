@@ -13,6 +13,9 @@ export function AccountDetailScreen({ route }: Props) {
   const account = useQuery({ queryKey: ['account', accountId], queryFn: () => getAccount(accountId) });
   const entries = useQuery({ queryKey: ['entries', accountId], queryFn: () => listEntriesForAccount(accountId) });
 
+  if (account.isLoading) return <Text style={styles.pad}>Loading…</Text>;
+  if (account.error) return <Text style={styles.pad}>Failed to load account.</Text>;
+
   return (
     <View style={styles.container}>
       {account.data && (
@@ -21,17 +24,21 @@ export function AccountDetailScreen({ route }: Props) {
           <Text>Status: {account.data.status}</Text>
         </View>
       )}
-      <FlatList
-        data={entries.data ?? []}
-        keyExtractor={(e) => e.id}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text>{item.direction} {item.amount}</Text>
-            <Text>{item.reason}</Text>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.pad}>No ledger entries yet.</Text>}
-      />
+      {entries.error ? (
+        <Text style={styles.pad}>Failed to load transaction history.</Text>
+      ) : (
+        <FlatList
+          data={entries.data ?? []}
+          keyExtractor={(e) => e.id}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
+              <Text>{item.direction} {item.amount}</Text>
+              <Text>{item.reason}</Text>
+            </View>
+          )}
+          ListEmptyComponent={<Text style={styles.pad}>No ledger entries yet.</Text>}
+        />
+      )}
     </View>
   );
 }

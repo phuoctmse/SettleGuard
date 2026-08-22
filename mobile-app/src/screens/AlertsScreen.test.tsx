@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 function renderWithQuery(ui: React.ReactElement) {
-  const client = new QueryClient();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
@@ -31,6 +31,14 @@ it('renders notifications returned by listNotifications', async () => {
 
   expect(await findByText('risk_hold · txn-1')).toBeTruthy();
   expect(await findByText('2026-08-20T00:00:00Z')).toBeTruthy();
+});
+
+it('shows a failure message when listNotifications errors', async () => {
+  (notificationsApi.listNotifications as jest.Mock).mockRejectedValue(new Error('network error'));
+
+  const { findByText } = await renderWithQuery(<AlertsScreen />);
+
+  expect(await findByText('Failed to load alerts.')).toBeTruthy();
 });
 
 it('polls for new notifications every 15 seconds', async () => {

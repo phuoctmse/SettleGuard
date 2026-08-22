@@ -4,9 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { listSettlements } from '../api/settlement';
 
 export function SettlementsScreen() {
-  const { data, isLoading } = useQuery({ queryKey: ['settlements'], queryFn: listSettlements });
+  const { data, isLoading, error } = useQuery({ queryKey: ['settlements'], queryFn: listSettlements });
 
   if (isLoading) return <Text style={styles.pad}>Loading…</Text>;
+  if (error) return <Text style={styles.pad}>Failed to load settlements.</Text>;
 
   return (
     <FlatList

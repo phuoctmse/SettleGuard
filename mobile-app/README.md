@@ -104,6 +104,12 @@ work:
 - **Real auth/login** — currently a placeholder: users hand-type a Client ID
   with no authentication. No real auth flow, no JWT/token validation, no
   password. Deferred until a shared auth decision is made across all services.
+  This gap is broader than login: the Held Transactions, Settlements, and
+  Alerts screens (and their backend endpoints) take no client/tenant scope
+  at all, so they show every client's data to anyone holding the app — only
+  the Accounts screens are gated by the hand-typed (and itself
+  unauthenticated) Client ID. Do not expose this app beyond a trusted
+  local/dev network until auth lands.
 - **Appium E2E suite** — end-to-end tests via Appium (in `tests/`) have not
   been written for mobile-app yet. Unit/component tests exist (`npm test`).
 - **Production build** — EAS Build (Expo's cloud build service), app store

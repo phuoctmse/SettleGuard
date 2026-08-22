@@ -7,7 +7,7 @@ import * as settlementApi from '../api/settlement';
 jest.mock('../api/settlement');
 
 function renderWithQuery(ui: React.ReactElement) {
-  const client = new QueryClient();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
@@ -26,4 +26,12 @@ it('renders settlements returned by listSettlements', async () => {
 
   expect(await findByText('Transactions: 2 · Total: 1500')).toBeTruthy();
   expect(await findByText('2026-08-20T00:00:00Z')).toBeTruthy();
+});
+
+it('shows a failure message when listSettlements errors', async () => {
+  (settlementApi.listSettlements as jest.Mock).mockRejectedValue(new Error('network error'));
+
+  const { findByText } = await renderWithQuery(<SettlementsScreen />);
+
+  expect(await findByText('Failed to load settlements.')).toBeTruthy();
 });

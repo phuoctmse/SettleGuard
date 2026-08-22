@@ -7,7 +7,7 @@ import * as settlementApi from '../api/settlement';
 jest.mock('../api/settlement');
 
 function renderWithQuery(ui: React.ReactElement) {
-  const client = new QueryClient();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
@@ -57,4 +57,29 @@ it('calls approveTransaction with the row id and removes the row after approval'
   await waitFor(() => {
     expect(queryByText('Amount: 500 · Score: 0.9')).toBeNull();
   });
+});
+
+it('shows a failure message when listHeldTransactions errors', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock).mockRejectedValue(new Error('network error'));
+
+  const { findByText } = await renderWithQuery(<HeldTransactionsScreen />);
+
+  expect(await findByText('Failed to load held transactions.')).toBeTruthy();
+});
+
+it('shows an error message and does not disable other rows when approve fails', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
+    { id: 'txn-1', amount: 500, score: 0.9, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+    { id: 'txn-2', amount: 200, score: 0.5, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+  ]);
+  (settlementApi.approveTransaction as jest.Mock).mockRejectedValue(new Error('conflict'));
+
+  const { findByText, getAllByText } = await renderWithQuery(<HeldTransactionsScreen />);
+
+  await findByText('Amount: 500 · Score: 0.9');
+
+  await fireEvent.press(getAllByText('Approve')[0]);
+
+  expect(await findByText('Failed to approve transaction. Please try again.')).toBeTruthy();
+  expect(getAllByText('Approve')).toHaveLength(2);
 });

@@ -4,13 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { listNotifications } from '../api/notifications';
 
 export function AlertsScreen() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['notifications'],
     queryFn: listNotifications,
     refetchInterval: 15000,
   });
 
   if (isLoading) return <Text style={styles.pad}>Loading…</Text>;
+  if (error) return <Text style={styles.pad}>Failed to load alerts.</Text>;
 
   return (
     <FlatList
