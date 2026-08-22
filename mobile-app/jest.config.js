@@ -3,7 +3,7 @@ module.exports = {
   setupFiles: ['./jest.setup-env.js'],
   setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@react-navigation/.*|expo-modules-core)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@react-navigation/.*|expo-modules-core|expo-linear-gradient|react-native-safe-area-context)/)',
   ],
   // @tanstack/react-query's QueryClient schedules a garbage-collection
   // timer (default gcTime 5 min) that outlives the test, so the worker
