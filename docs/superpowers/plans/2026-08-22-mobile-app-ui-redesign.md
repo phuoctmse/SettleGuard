@@ -13,11 +13,12 @@
 - **Design spec:** `docs/superpowers/specs/2026-08-22-mobile-app-ui-redesign-design.md` — read for full rationale; this plan carries every exact value forward, so implementers don't need to re-read it, but it's the source of truth if this plan and the spec ever disagree.
 - **No backend/API changes.** No new screens, no new business functionality. Every existing screen keeps its current data-fetching logic (`useQuery`/`useMutation` calls) untouched — only rendering changes.
 - **RNTL v14 is async:** `render()` and `fireEvent.*()` must be `await`ed. This is a hard-won lesson from this project's MVP build (a prior implementer wrote a broken workaround assuming otherwise) — every test in this plan already does this correctly; copy the pattern exactly.
-- **New dependency install command:** this project's `package-lock.json` needs `--legacy-peer-deps` for any `npm install` due to a pre-existing `react-test-renderer` peer conflict (react 19.2.3 pinned vs. react-test-renderer's latest publish wanting 19.2.8). Always install new packages with:
+- **New dependency install command:** this project's `package-lock.json` needs `--force` (not `--legacy-peer-deps`) for any `npm install`, due to a pre-existing `react-test-renderer` peer conflict (react 19.2.3 pinned vs. react-test-renderer's latest publish wanting 19.2.8). **Do not use `--legacy-peer-deps`** — it was tried during this plan's own execution (Task 4) and silently prunes `test-renderer`, an *undeclared* peer dependency of `@testing-library/react-native@14` that every test file needs (`--legacy-peer-deps` disables npm's peer auto-install entirely, so an undeclared, peer-only package gets dropped from the tree with no warning). `--force` still performs normal peer auto-install and only overrides the one known conflict. Always install new packages with:
   ```bash
-  npm install <package>@<version> --legacy-peer-deps
+  npm install <package>@<version> --registry=https://registry.npmjs.org --force
   ```
-  Do **not** use `npx expo install` for new packages in this plan — it internally calls plain `npm install` without this flag and will fail with `ERESOLVE`.
+  The explicit `--registry` flag matters too — this machine's default npm registry is a mirror (`registry.npmmirror.com`); omitting it re-introduces mirror URLs into the committed lockfile (previously fixed and flagged as must-fix-before-merge in the MVP's whole-branch review). If a fresh install still leaves any `registry.npmmirror.com` URLs in `package-lock.json` (can happen from stale local npm cache), run `npm cache clean --force` and reinstall.
+  Do **not** use `npx expo install` for new packages in this plan — it internally calls plain `npm install` without either flag and will fail with `ERESOLVE`.
 - **No Claude/AI attribution trailers** in any commit message (repo-wide hard rule).
 - **Preserve every string an existing test asserts on.** The screens being restyled have existing tests (`*.test.tsx` next to each screen) that assert on exact visible text (e.g. `'Balance: 500'`, `'Failed to load held transactions.'`, `'Approve'`). This plan's screen-restyle tasks are written so the rendered text is byte-identical to today — do not paraphrase, reformat, or "improve" any string a test checks. Run the existing test file after every screen change to confirm.
 - **Colors/typography/spacing values below are exact** — copy them verbatim into the token files, do not approximate.
@@ -482,10 +483,19 @@ git commit -m "feat(mobile-app): add EmptyState component"
 - Consumes: `colors`, `spacing` from `../theme` (Task 1); `react-native-safe-area-context` (already a dependency, unused directly until now)
 - Produces: `ScreenContainer({ children, contentStyle? })` — gradient background + safe-area + horizontal padding wrapper. `contentStyle` is an escape hatch for per-screen layout tweaks (Task 5 uses it to vertically center `ClientLookupScreen`'s form). Every screen task (4-8) wraps its top-level return in this.
 
+**Note on `SafeAreaView` vs. `useSafeAreaInsets`:** the code below uses the
+`useSafeAreaInsets` hook, not the `SafeAreaView` component, specifically
+because `react-native-safe-area-context`'s own official Jest mock (used in
+Step 2) only implements the hook, not the component — using `SafeAreaView`
+here would resolve to `undefined` under that mock and crash every test that
+renders `ScreenContainer` with "Element type is invalid". This was
+discovered the hard way during this plan's own execution; the code below is
+the corrected, verified-working version.
+
 - [ ] **Step 1: Install `expo-linear-gradient`**
 
 ```bash
-npm install expo-linear-gradient@~57.0.1 --legacy-peer-deps
+npm install expo-linear-gradient@~57.0.1 --registry=https://registry.npmjs.org --force
 ```
 
 - [ ] **Step 2: Add the safe-area-context Jest mock**
@@ -496,9 +506,14 @@ Append to `mobile-app/jest.setup-env.js`:
 
 // react-native-safe-area-context needs its dedicated Jest mock (its native
 // module has no real insets in the test environment) — required as soon as
-// any component uses SafeAreaView/useSafeAreaInsets, per the library's own
-// setup docs.
-jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock'));
+// any component uses useSafeAreaInsets, per the library's own setup docs.
+// The mock file is `export default {...}`; requiring it directly (bypassing
+// Babel's import-interop) yields { default: {...} }, so unwrap .default or
+// named imports like useSafeAreaInsets resolve to undefined.
+jest.mock('react-native-safe-area-context', () => {
+  const mock = require('react-native-safe-area-context/jest/mock');
+  return mock.default ?? mock;
+});
 ```
 
 - [ ] **Step 3: Write `src/components/ScreenContainer.tsx`**
@@ -507,7 +522,7 @@ jest.mock('react-native-safe-area-context', () => require('react-native-safe-are
 import type { ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '../theme';
 
@@ -517,18 +532,20 @@ interface Props {
 }
 
 export function ScreenContainer({ children, contentStyle }: Props) {
+  const insets = useSafeAreaInsets();
   return (
     <LinearGradient colors={colors.backgroundGradient} style={styles.gradient}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={[styles.content, contentStyle]}>{children}</View>
-      </SafeAreaView>
+      <View
+        style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom }, contentStyle]}
+      >
+        {children}
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
-  safeArea: { flex: 1 },
   content: { flex: 1, paddingHorizontal: spacing.lg },
 });
 ```
@@ -556,19 +573,34 @@ it('renders its children', async () => {
 Run: `npm test -- src/components/ScreenContainer.test.tsx`
 Expected: PASS, 1 test.
 
-**If it instead fails with `SyntaxError: Cannot use import statement outside a module` mentioning `expo-linear-gradient`:** this project's Jest config only transforms a specific allowlist of `node_modules` packages (see the comment above `transformIgnorePatterns` in `jest.config.js`) — `expo-linear-gradient` ships untransformed ESM and needs to join that allowlist, the same fix already applied once before for `expo-modules-core` (see git history, commit `9fc47cb`). Fix: in `mobile-app/jest.config.js`, change
+Two known contingencies may fire here, both already fixed in the code above
+and in Step 2 — if you followed Steps 1-4 exactly as written you should not
+hit either, but if you deviated and land on one of these errors, here's the
+fix:
+
+- **`SyntaxError: Cannot use import statement outside a module` mentioning
+  `expo-linear-gradient`:** this project's Jest config only transforms a
+  specific allowlist of `node_modules` packages (see the comment above
+  `transformIgnorePatterns` in `jest.config.js`) — `expo-linear-gradient`
+  ships untransformed ESM and needs to join that allowlist, the same fix
+  already applied once before for `expo-modules-core` (see git history,
+  commit `9fc47cb`). Add `|expo-linear-gradient` to the regex alternation.
+- **Same error mentioning `react-native-safe-area-context/jest/mock.tsx`:**
+  that package also isn't in the allowlist (a pre-existing gap that only
+  surfaces once something actually imports it in a test, which Step 2 just
+  did for the first time in this project). Add
+  `|react-native-safe-area-context` to the same regex alternation.
+
+Both together, the full updated regex is:
 
 ```js
-'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@react-navigation/.*|expo-modules-core)/)',
+'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@react-navigation/.*|expo-modules-core|expo-linear-gradient|react-native-safe-area-context)/)',
 ```
 
-to
-
-```js
-'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@react-navigation/.*|expo-modules-core|expo-linear-gradient)/)',
-```
-
-then rerun Step 5.
+then rerun Step 5. (Editing `jest.config.js` invalidates Jest's transform
+cache, so the very next run may be slower and can spuriously hit the
+default 5000ms test timeout — if that happens, simply rerun once more; it's
+a one-time cold-cache effect, not a real failure.)
 
 - [ ] **Step 6: Commit**
 
@@ -576,8 +608,6 @@ then rerun Step 5.
 git add package.json package-lock.json jest.setup-env.js src/components/ScreenContainer.tsx src/components/ScreenContainer.test.tsx jest.config.js
 git commit -m "feat(mobile-app): add ScreenContainer component with gradient background"
 ```
-
-(If Step 5's contingency wasn't needed, `jest.config.js` will simply have no changes — `git add` on an unchanged file is a no-op.)
 
 ---
 
@@ -600,7 +630,7 @@ This task is a **structural, not visual** change — screens keep their current 
 - [ ] **Step 1: Install navigation and icon dependencies**
 
 ```bash
-npm install @react-navigation/bottom-tabs@^7.18.9 @expo/vector-icons@^15.1.1 --legacy-peer-deps
+npm install @react-navigation/bottom-tabs@^7.18.9 @expo/vector-icons@^15.1.1 --registry=https://registry.npmjs.org --force
 ```
 
 - [ ] **Step 2: Rewrite `src/navigation/RootNavigator.tsx`**
