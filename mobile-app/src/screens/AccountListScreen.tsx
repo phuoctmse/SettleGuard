@@ -2,10 +2,10 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
 import { listAccounts } from '../api/accounts';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AccountList'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'AccountList'>;
 
 export function AccountListScreen({ navigation, route }: Props) {
   const { clientId } = route.params;

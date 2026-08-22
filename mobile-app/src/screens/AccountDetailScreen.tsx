@@ -2,11 +2,11 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
 import { getAccount } from '../api/accounts';
 import { listEntriesForAccount } from '../api/ledger';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AccountDetail'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'AccountDetail'>;
 
 export function AccountDetailScreen({ route }: Props) {
   const { accountId } = route.params;

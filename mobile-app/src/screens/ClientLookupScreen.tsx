@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ClientLookup'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'ClientLookup'>;
 
 export function ClientLookupScreen({ navigation }: Props) {
   const [clientId, setClientId] = useState('');
