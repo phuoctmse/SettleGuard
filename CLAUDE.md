@@ -4,12 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`services/ledger-service`, `services/accounts-service`,
-`services/settlement-engine`, and `services/notification-service` have
-working MVPs (see each service's README.md for build/lint/test/run
-commands). `mobile-app` is the only remaining piece still a scaffold with
-no code. As it's implemented, add its build/lint/test commands to this
-file rather than assuming conventions from the stack.
+All services and mobile-app have working MVPs:
+
+- **`services/ledger-service`** (Go, Postgres) — append-only ledger. Build:
+  `go build ./...`, Lint: `go vet ./...`, Test: `go test ./...`.
+- **`services/accounts-service`** (Go, Postgres) — account identity and
+  balance tracking. Build: `go build ./...`, Lint: `golangci-lint run ./...`,
+  Test: `go test ./...`.
+- **`services/settlement-engine`** (Go, Postgres) — transaction risk scoring
+  and settlement batching. Build: `go build ./...`, Lint:
+  `golangci-lint run ./...`, Test: `go test ./...`.
+- **`services/notification-service`** (Python) — event consumer for risk
+  holds and settlements. Test: `pytest`.
+- **`mobile-app`** (Expo/TypeScript) — read-oriented client for all backend
+  services, with approve/reject actions on held transactions. Run:
+  `npx expo start`, Test: `npm test`.
+
+See each service's README.md for more detail.
 
 ## What SettleGuard Is
 
