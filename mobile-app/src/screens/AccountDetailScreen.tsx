@@ -2,51 +2,66 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
 import { getAccount } from '../api/accounts';
 import { listEntriesForAccount } from '../api/ledger';
+import { ScreenContainer } from '../components/ScreenContainer';
+import { Card } from '../components/Card';
+import { BalanceDisplay } from '../components/BalanceDisplay';
+import { EmptyState } from '../components/EmptyState';
+import { colors, spacing, typography } from '../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AccountDetail'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'AccountDetail'>;
 
 export function AccountDetailScreen({ route }: Props) {
   const { accountId } = route.params;
   const account = useQuery({ queryKey: ['account', accountId], queryFn: () => getAccount(accountId) });
   const entries = useQuery({ queryKey: ['entries', accountId], queryFn: () => listEntriesForAccount(accountId) });
 
-  if (account.isLoading) return <Text style={styles.pad}>Loading…</Text>;
-  if (account.error) return <Text style={styles.pad}>Failed to load account.</Text>;
+  if (account.isLoading) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="loading" />
+      </ScreenContainer>
+    );
+  }
+  if (account.error) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="error" message="Failed to load account." />
+      </ScreenContainer>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
       {account.data && (
         <View style={styles.header}>
-          <Text style={styles.balance}>Balance: {account.data.balance}</Text>
-          <Text>Status: {account.data.status}</Text>
+          <BalanceDisplay amount={account.data.balance} />
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>Status: {account.data.status}</Text>
         </View>
       )}
       {entries.error ? (
-        <Text style={styles.pad}>Failed to load transaction history.</Text>
+        <EmptyState status="error" message="Failed to load transaction history." />
       ) : (
         <FlatList
           data={entries.data ?? []}
           keyExtractor={(e) => e.id}
           renderItem={({ item }) => (
-            <View style={styles.row}>
-              <Text>{item.direction} {item.amount}</Text>
-              <Text>{item.reason}</Text>
-            </View>
+            <Card>
+              <Text style={[typography.body, { color: colors.textPrimary }]}>
+                {item.direction} {item.amount}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.reason}</Text>
+            </Card>
           )}
-          ListEmptyComponent={<Text style={styles.pad}>No ledger entries yet.</Text>}
+          ListEmptyComponent={<EmptyState status="empty" message="No ledger entries yet." />}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { padding: 16, borderBottomWidth: 1, borderColor: '#eee' },
-  balance: { fontSize: 20, fontWeight: '600' },
-  pad: { padding: 16 },
-  row: { padding: 16, borderBottomWidth: 1, borderColor: '#eee' },
+  header: { marginBottom: spacing.lg },
 });

@@ -1,20 +1,24 @@
 import { useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AccountsStackParamList } from '../navigation/RootNavigator';
+import { ScreenContainer } from '../components/ScreenContainer';
+import { Button } from '../components/Button';
+import { colors, spacing, typography } from '../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ClientLookup'>;
+type Props = NativeStackScreenProps<AccountsStackParamList, 'ClientLookup'>;
 
 export function ClientLookupScreen({ navigation }: Props) {
   const [clientId, setClientId] = useState('');
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Enter a Client ID to view its accounts:</Text>
+    <ScreenContainer contentStyle={styles.centered}>
+      <Text style={[typography.label, styles.label]}>Enter a Client ID to view its accounts:</Text>
       <TextInput
-        style={styles.input}
+        style={[typography.body, styles.input]}
         placeholder="Client ID"
+        placeholderTextColor={colors.textSecondary}
         value={clientId}
         onChangeText={setClientId}
         autoCapitalize="none"
@@ -24,12 +28,20 @@ export function ClientLookupScreen({ navigation }: Props) {
         disabled={clientId.trim().length === 0}
         onPress={() => navigation.navigate('AccountList', { clientId: clientId.trim() })}
       />
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, justifyContent: 'center' },
-  label: { marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, padding: 8, marginBottom: 12 },
+  centered: { justifyContent: 'center' },
+  label: { color: colors.textSecondary, marginBottom: spacing.sm },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: spacing.cardRadius,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceSolid,
+  },
 });

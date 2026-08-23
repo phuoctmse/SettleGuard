@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { approveTransaction, listHeldTransactions, rejectTransaction } from '../api/settlement';
+import { ScreenContainer } from '../components/ScreenContainer';
+import { Card } from '../components/Card';
+import { StatusChip } from '../components/StatusChip';
+import { Button } from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
+import { colors, spacing, typography } from '../theme';
 
 export function HeldTransactionsScreen() {
   const queryClient = useQueryClient();
@@ -23,40 +29,67 @@ export function HeldTransactionsScreen() {
     onError: () => setActionError('Failed to reject transaction. Please try again.'),
   });
 
-  if (isLoading) return <Text style={styles.pad}>Loading…</Text>;
-  if (error) return <Text style={styles.pad}>Failed to load held transactions.</Text>;
+  if (isLoading) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="loading" />
+      </ScreenContainer>
+    );
+  }
+  if (error) {
+    return (
+      <ScreenContainer>
+        <EmptyState status="error" message="Failed to load held transactions." />
+      </ScreenContainer>
+    );
+  }
 
   return (
-    <FlatList
-      data={data}
-      keyExtractor={(t) => t.id}
-      ListHeaderComponent={actionError ? <Text style={styles.error}>{actionError}</Text> : null}
-      renderItem={({ item }) => {
-        const approving = approve.variables === item.id && approve.isPending;
-        const rejecting = reject.variables === item.id && reject.isPending;
-        return (
-          <View style={styles.row}>
-            <Text>Amount: {item.amount} · Score: {item.score}</Text>
-            <Text>Triggered: {item.triggered_rules.join(', ') || 'none'}</Text>
-            <View style={styles.actions}>
-              <Pressable disabled={approving} onPress={() => approve.mutate(item.id)}>
-                <Text>{approving ? 'Approving…' : 'Approve'}</Text>
-              </Pressable>
-              <Pressable disabled={rejecting} onPress={() => reject.mutate(item.id)}>
-                <Text>{rejecting ? 'Rejecting…' : 'Reject'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        );
-      }}
-      ListEmptyComponent={<Text style={styles.pad}>No held transactions.</Text>}
-    />
+    <ScreenContainer>
+      <FlatList
+        data={data}
+        keyExtractor={(t) => t.id}
+        ListHeaderComponent={
+          actionError ? <Text style={[typography.body, styles.errorText]}>{actionError}</Text> : null
+        }
+        renderItem={({ item }) => {
+          const approving = approve.variables === item.id && approve.isPending;
+          const rejecting = reject.variables === item.id && reject.isPending;
+          return (
+            <Card>
+              <View style={styles.rowTop}>
+                <Text style={[typography.body, { color: colors.textPrimary }]}>
+                  Amount: {item.amount} · Score: {item.score}
+                </Text>
+                <StatusChip status={item.status} />
+              </View>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                Triggered: {item.triggered_rules.join(', ') || 'none'}
+              </Text>
+              <View style={styles.actions}>
+                <Button
+                  title={approving ? 'Approving…' : 'Approve'}
+                  disabled={approving}
+                  onPress={() => approve.mutate(item.id)}
+                />
+                <Button
+                  title={rejecting ? 'Rejecting…' : 'Reject'}
+                  disabled={rejecting}
+                  variant="secondary"
+                  onPress={() => reject.mutate(item.id)}
+                />
+              </View>
+            </Card>
+          );
+        }}
+        ListEmptyComponent={<EmptyState status="empty" message="No held transactions." />}
+      />
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 16 },
-  row: { padding: 16, borderBottomWidth: 1, borderColor: '#eee' },
-  actions: { flexDirection: 'row', gap: 16, marginTop: 8 },
-  error: { padding: 16, color: '#b00020' },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  errorText: { padding: spacing.lg, color: colors.danger },
 });
