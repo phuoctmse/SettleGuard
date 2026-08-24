@@ -701,7 +701,7 @@ def test_velocity_limit_holds_transaction_over_threshold(accounts, ledger, settl
                 {"account_id": acc2, "direction": "credit", "amount": 100, "reason": "velocity"},
             ]
         ).json()
-        last_transaction_id = tx["transaction_id"]
+        last_transaction_id = tx[0]["transaction_id"]
 
     def held():
         resp = settlement.get_transaction(last_transaction_id)
@@ -724,7 +724,7 @@ def test_mismatch_threshold_holds_oversized_transaction(accounts, ledger, settle
     ).json()
 
     def held():
-        resp = settlement.get_transaction(tx["transaction_id"])
+        resp = settlement.get_transaction(tx[0]["transaction_id"])
         body = resp.json() if resp.status_code == 200 else None
         return body if body and body["status"] == "held" else None
 
@@ -749,7 +749,7 @@ def test_blocklist_bypass_holds_transaction_regardless_of_amount_or_velocity(
     ).json()
 
     def held():
-        resp = settlement.get_transaction(tx["transaction_id"])
+        resp = settlement.get_transaction(tx[0]["transaction_id"])
         body = resp.json() if resp.status_code == 200 else None
         return body if body and body["status"] == "held" else None
 
@@ -769,16 +769,16 @@ def test_double_approve_second_call_returns_409(accounts, ledger, settlement):
     ).json()
 
     def held():
-        resp = settlement.get_transaction(tx["transaction_id"])
+        resp = settlement.get_transaction(tx[0]["transaction_id"])
         body = resp.json() if resp.status_code == 200 else None
         return body if body and body["status"] == "held" else None
 
     _wait_until(held)
 
-    first = settlement.approve(tx["transaction_id"])
+    first = settlement.approve(tx[0]["transaction_id"])
     assert first.status_code == 200
 
-    second = settlement.approve(tx["transaction_id"])
+    second = settlement.approve(tx[0]["transaction_id"])
     assert second.status_code == 409
 
 
@@ -794,7 +794,7 @@ def test_held_transaction_excluded_from_settlements_until_approved(accounts, led
     ).json()
 
     def held():
-        resp = settlement.get_transaction(tx["transaction_id"])
+        resp = settlement.get_transaction(tx[0]["transaction_id"])
         body = resp.json() if resp.status_code == 200 else None
         return body if body and body["status"] == "held" else None
 
@@ -805,7 +805,7 @@ def test_held_transaction_excluded_from_settlements_until_approved(accounts, led
 
     for s in settlement.list_settlements().json():
         detail = settlement.get_settlement(s["id"]).json()
-        assert tx["transaction_id"] not in detail["transaction_ids"]
+        assert tx[0]["transaction_id"] not in detail["transaction_ids"]
 ```
 
 - [ ] **Step 3: Run against the real stack, verify pass**
