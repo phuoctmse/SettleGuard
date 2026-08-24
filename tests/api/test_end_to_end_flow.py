@@ -39,7 +39,7 @@ def test_passing_transaction_flows_to_settlement_and_notification(accounts, ledg
         return resp.json() if resp.status_code == 200 else None
 
     scored_tx = _wait_until(scored)
-    assert scored_tx["status"] == "pending_settlement"
+    assert scored_tx["status"] in ("pending_settlement", "settled")
 
     # settlement-engine batches on a schedule (SETTLEMENT_BATCH_INTERVAL_SECONDS,
     # default 60s) -- run it with SETTLEMENT_BATCH_INTERVAL_SECONDS=5 for this

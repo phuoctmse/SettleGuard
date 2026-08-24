@@ -513,7 +513,7 @@ def test_passing_transaction_flows_to_settlement_and_notification(accounts, ledg
             {"account_id": acc2, "direction": "credit", "amount": NORMAL_AMOUNT, "reason": "e2e"},
         ]
     ).json()
-    transaction_id = tx["transaction_id"]
+    transaction_id = tx[0]["transaction_id"]
 
     def scored():
         resp = settlement.get_transaction(transaction_id)
@@ -549,7 +549,7 @@ def test_held_transaction_can_be_approved_and_then_settles(accounts, ledger, set
             {"account_id": acc2, "direction": "credit", "amount": MISMATCH_THRESHOLD_AMOUNT, "reason": "e2e-hold"},
         ]
     ).json()
-    transaction_id = tx["transaction_id"]
+    transaction_id = tx[0]["transaction_id"]
 
     def held():
         resp = settlement.get_transaction(transaction_id)
