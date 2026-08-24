@@ -39,7 +39,11 @@ section.
   port): `ACCOUNTS_API_URL` (default `http://localhost:8081`),
   `LEDGER_API_URL` (`http://localhost:8080`), `SETTLEMENT_API_URL`
   (`http://localhost:8082`), `NOTIFICATION_API_URL`
-  (`http://localhost:8083`).
+  (`http://localhost:8083`), `SETTLEMENT_DATABASE_URL` (default
+  `postgres://settlement:settlement@localhost:5435/settlement?sslmode=disable`
+  — settlement-engine's own Postgres, per its README `Run locally`
+  section; used only by `tests/security`'s blocklist-bypass test, see
+  Task 5).
 - `tests/security` imports `tests/api/clients` directly (both live under
   the same `tests/` pytest rootdir) — no duplicate HTTP client code.
 - Run all commands below from inside `tests/`.
@@ -67,7 +71,12 @@ section.
 pytest>=8.0,<9
 httpx>=0.27,<1
 locust>=2.25,<3
+psycopg2-binary>=2.9,<3
 ```
+
+(`psycopg2-binary` is used only by Task 5's blocklist-bypass test, which
+needs a direct Postgres connection to seed a `blocklist` row -- there is
+no HTTP endpoint for it, see Task 5 Step 1a.)
 
 `tests/pyproject.toml`:
 
@@ -601,17 +610,60 @@ fixtures. No new interfaces produced.
 - [ ] **Step 1: `tests/security/conftest.py`**
 
 ```python
+import os
 import sys
+import uuid
 from pathlib import Path
+
+import psycopg2
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "api"))
 
 pytest_plugins = ["conftest"]
+
+SETTLEMENT_DATABASE_URL = os.environ.get(
+    "SETTLEMENT_DATABASE_URL",
+    "postgres://settlement:settlement@localhost:5435/settlement?sslmode=disable",
+)
+
+
+@pytest.fixture
+def seed_blocklist():
+    """Yields a function that inserts a `blocklist` row for a given
+    (already-existing, e.g. from accounts-service) account id. Rows
+    inserted during the test are deleted afterward. Direct-DB is a
+    deliberate exception here -- settlement-engine has no HTTP endpoint to
+    manage the blocklist (see plan Global Constraints)."""
+    conn = psycopg2.connect(SETTLEMENT_DATABASE_URL)
+    inserted_ids = []
+
+    def _seed(account_id: str):
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO blocklist (id, entity_type, entity_id, reason) VALUES (%s, 'account', %s, %s)",
+                    (str(uuid.uuid4()), account_id, "fraud-bypass test"),
+                )
+        inserted_ids.append(account_id)
+
+    yield _seed
+
+    with conn:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "DELETE FROM blocklist WHERE entity_id = %s",
+                [(aid,) for aid in inserted_ids],
+            )
+    conn.close()
 ```
 
 (Reuses `tests/api/conftest.py`'s fixtures wholesale via `pytest_plugins`
 -- the standard pytest mechanism for sharing fixtures across directories,
-avoids copy-pasting the health-check logic.)
+avoids copy-pasting the health-check logic. `seed_blocklist` is the one
+place in the whole suite that talks to a service's database directly --
+justified because settlement-engine has no HTTP surface for blocklist
+management; everywhere else stays HTTP-only.)
 
 - [ ] **Step 2: Write the tests**
 
@@ -680,6 +732,31 @@ def test_mismatch_threshold_holds_oversized_transaction(accounts, ledger, settle
     assert "mismatch_threshold" in result["triggered_rules"]
 
 
+def test_blocklist_bypass_holds_transaction_regardless_of_amount_or_velocity(
+    accounts, ledger, settlement, seed_blocklist
+):
+    # SETTLEMENT-01: blocklist is one of the 3 OR'd hold rules -- a
+    # blocked account must hold even a single small, low-velocity
+    # transaction that would otherwise pass outright.
+    acc1, acc2 = _new_account(accounts), _new_account(accounts)
+    seed_blocklist(acc1)
+
+    tx = ledger.post_transaction(
+        [
+            {"account_id": acc1, "direction": "debit", "amount": 100, "reason": "blocklist"},
+            {"account_id": acc2, "direction": "credit", "amount": 100, "reason": "blocklist"},
+        ]
+    ).json()
+
+    def held():
+        resp = settlement.get_transaction(tx["transaction_id"])
+        body = resp.json() if resp.status_code == 200 else None
+        return body if body and body["status"] == "held" else None
+
+    result = _wait_until(held)
+    assert "blocklist" in result["triggered_rules"]
+
+
 def test_double_approve_second_call_returns_409(accounts, ledger, settlement):
     # SETTLEMENT-05: approve/reject only valid from `held`; a second
     # resolve attempt on an already-resolved transaction must not succeed.
@@ -744,6 +821,11 @@ pytest tests/security -v
 git add tests/security/
 git commit -m "feat(tests): fraud-bypass security tests (SETTLEMENT-01/02/04/05)"
 ```
+
+Note: this covers all 5 fraud-bypass tests from the design spec
+(velocity, mismatch, blocklist, double-resolve, held-excluded-from-batch)
+-- the blocklist test maps to SETTLEMENT-01 (the OR-of-3-rules decision),
+same as velocity and mismatch.
 
 ---
 
