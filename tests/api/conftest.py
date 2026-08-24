@@ -3,6 +3,11 @@ import os
 import httpx
 import pytest
 
+from clients.accounts import AccountsClient
+from clients.ledger import LedgerClient
+from clients.notifications import NotificationsClient
+from clients.settlement import SettlementClient
+
 SERVICES = {
     "accounts": os.environ.get("ACCOUNTS_API_URL", "http://localhost:8081"),
     "ledger": os.environ.get("LEDGER_API_URL", "http://localhost:8080"),
@@ -38,12 +43,6 @@ def settlement_base_url():
 @pytest.fixture(scope="session")
 def notification_base_url():
     return _require_reachable("notification", SERVICES["notification"])
-
-
-from clients.accounts import AccountsClient
-from clients.ledger import LedgerClient
-from clients.notifications import NotificationsClient
-from clients.settlement import SettlementClient
 
 
 @pytest.fixture
