@@ -38,3 +38,29 @@ def settlement_base_url():
 @pytest.fixture(scope="session")
 def notification_base_url():
     return _require_reachable("notification", SERVICES["notification"])
+
+
+from clients.accounts import AccountsClient
+from clients.ledger import LedgerClient
+from clients.notifications import NotificationsClient
+from clients.settlement import SettlementClient
+
+
+@pytest.fixture
+def accounts(accounts_base_url):
+    return AccountsClient(accounts_base_url)
+
+
+@pytest.fixture
+def ledger(ledger_base_url):
+    return LedgerClient(ledger_base_url)
+
+
+@pytest.fixture
+def settlement(settlement_base_url):
+    return SettlementClient(settlement_base_url)
+
+
+@pytest.fixture
+def notifications(notification_base_url):
+    return NotificationsClient(notification_base_url)
