@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+testpaths = ["api", "security"]
+pythonpath = ["api"]
+addopts = ["--import-mode=importlib"]
