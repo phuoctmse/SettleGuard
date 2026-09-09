@@ -1,0 +1,334 @@
+openapi: 3.1.0
+info:
+  title: Settlement Engine API
+  version: 1.0.0
+  description: The Settlement Engine handles evaluating and scoring transactions for risk, placing holds on risky transactions, and aggregating settled transactions into settlements.
+servers:
+  - url: http://localhost:8082
+paths:
+  /health:
+    get:
+      operationId: checkHealth
+      summary: Health Check
+      description: Returns the health status of the service.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /transactions:
+    get:
+      operationId: listTransactions
+      summary: List Transactions
+      description: Lists transactions filtered by a specific status. Currently only used for querying held transactions.
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: The status to filter transactions by (e.g., held).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Missing status query param
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      summary: Get Transaction
+      description: Retrieves a transaction by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the transaction.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid transaction id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /transactions/{id}/approve:
+    post:
+      operationId: approveTransaction
+      summary: Approve Transaction
+      description: Approves a transaction that is currently in 'held' status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the transaction to approve.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid transaction id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Transaction is not held
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /transactions/{id}/reject:
+    post:
+      operationId: rejectTransaction
+      summary: Reject Transaction
+      description: Rejects a transaction that is currently in 'held' status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the transaction to reject.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid transaction id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Transaction is not held
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /settlements:
+    get:
+      operationId: listSettlements
+      summary: List Settlements
+      description: Lists all settlements.
+      responses:
+        '200':
+          description: A list of settlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Settlement'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /settlements/{id}:
+    get:
+      operationId: getSettlement
+      summary: Get Settlement
+      description: Retrieves a settlement by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the settlement.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The settlement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settlement'
+        '400':
+          description: Invalid settlement id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Settlement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+      required:
+        - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: transaction not found
+      required:
+        - error
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        account_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["123e4567-e89b-12d3-a456-426614174001", "123e4567-e89b-12d3-a456-426614174002"]
+        amount:
+          type: integer
+          format: int64
+          description: Amount in VND dong (integer, not cents)
+          example: 15000000
+        score:
+          type: integer
+          example: 85
+        decision:
+          type: string
+          enum: [pass, hold]
+          example: pass
+        status:
+          type: string
+          enum: [pending_settlement, held, settled, rejected]
+          example: pending_settlement
+        triggered_rules:
+          type: array
+          items:
+            type: string
+          example: ["high_velocity"]
+        scored_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+      required:
+        - id
+        - account_ids
+        - amount
+        - score
+        - decision
+        - status
+        - triggered_rules
+        - scored_at
+    Settlement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        transaction_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["123e4567-e89b-12d3-a456-426614174001", "123e4567-e89b-12d3-a456-426614174002"]
+        transaction_count:
+          type: integer
+          example: 2
+        total_amount:
+          type: integer
+          format: int64
+          description: Amount in VND dong (integer, not cents)
+          example: 30000000
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+      required:
+        - id
+        - transaction_ids
+        - transaction_count
+        - total_amount
+        - created_at

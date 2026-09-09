@@ -1,0 +1,188 @@
+openapi: 3.1.0
+info:
+  title: Ledger Service API
+  version: 1.0.0
+  description: The Ledger Service is responsible for maintaining the immutable ledger of financial entries. It handles the posting of balanced transactions and querying of ledger entries by account or transaction ID.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      operationId: checkHealth
+      summary: Health Check
+      description: Returns the health status of the service.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /transactions:
+    post:
+      operationId: createTransaction
+      summary: Create Transaction
+      description: Creates a new transaction with a set of balanced ledger entries. Returns the created ledger entries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerEntry'
+        '400':
+          description: Invalid request body or invalid account_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable entity (e.g., unbalanced transaction, invalid amount, invalid direction, no entries)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /entries:
+    get:
+      operationId: listEntries
+      summary: List Entries
+      description: Lists ledger entries by account_id or transaction_id. Exactly one of account_id or transaction_id query parameters must be provided.
+      parameters:
+        - name: account_id
+          in: query
+          description: The UUID of the account to filter entries by.
+          schema:
+            type: string
+            format: uuid
+        - name: transaction_id
+          in: query
+          description: The UUID of the transaction to filter entries by.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A list of ledger entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerEntry'
+        '400':
+          description: Missing or invalid account_id or transaction_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+      required:
+        - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: invalid JSON body
+      required:
+        - error
+    LedgerEntryRequest:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        direction:
+          type: string
+          enum: [debit, credit]
+          example: debit
+        amount:
+          type: integer
+          format: int64
+          description: Amount in VND dong (integer, not cents)
+          example: 10000000
+        reason:
+          type: string
+          example: deposit
+      required:
+        - account_id
+        - direction
+        - amount
+        - reason
+    CreateTransactionRequest:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerEntryRequest'
+      required:
+        - entries
+    LedgerEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174001
+        transaction_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174002
+        account_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        direction:
+          type: string
+          enum: [debit, credit]
+          example: debit
+        amount:
+          type: integer
+          format: int64
+          description: Amount in VND dong (integer, not cents)
+          example: 10000000
+        reason:
+          type: string
+          example: deposit
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+      required:
+        - id
+        - transaction_id
+        - account_id
+        - direction
+        - amount
+        - reason
+        - created_at

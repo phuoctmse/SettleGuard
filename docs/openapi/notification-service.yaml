@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: Notification Service API
+  version: 1.0.0
+  description: The Notification Service is responsible for storing and retrieving business events and alerts such as risk holds and settlement finalizations.
+servers:
+  - url: http://localhost:8083
+paths:
+  /health:
+    get:
+      operationId: checkHealth
+      summary: Health Check
+      description: Returns the health status of the service.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List Notifications
+      description: Retrieves a list of notifications optionally filtered by type and date, with pagination support via limit.
+      parameters:
+        - name: type
+          in: query
+          description: The type of notification to filter by.
+          schema:
+            type: string
+            enum: [risk_hold, settlement_finalized]
+        - name: since
+          in: query
+          description: Filter notifications created on or after this ISO8601 datetime.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          description: The maximum number of notifications to return. Maximum allowed is 200, default is 50.
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: A list of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '400':
+          description: Invalid query parameters (since or limit)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: invalid limit
+      required:
+        - error
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        type:
+          type: string
+          enum: [risk_hold, settlement_finalized]
+          example: risk_hold
+        subject_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174001
+        payload:
+          type: object
+          description: The JSON payload of the notification, schema varies by type.
+          example: {"transaction_id": "123e4567-e89b-12d3-a456-426614174001", "reason": "velocity"}
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000000"
+      required:
+        - id
+        - type
+        - subject_id
+        - payload
+        - created_at

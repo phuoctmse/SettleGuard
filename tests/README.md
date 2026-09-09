@@ -26,10 +26,14 @@ themselves; this suite tests the system from the outside).
 
 **Explicitly deferred (not in this suite, not accidentally skipped):**
 
-- **`tests/ai-tools`** — blocked on two prerequisites that don't exist
-  yet: a real OpenAPI spec (`docs/openapi.yaml` currently exists but is
-  empty) and a CI pipeline (no `.github/workflows` yet) to triage. Both
-  are large enough to be their own plan.
+- **`tests/ai-tools`** — was blocked on two prerequisites. One is now
+  met: real OpenAPI specs exist, one per service, under `docs/openapi/`
+  (they are separate documents rather than one merged file because
+  `ledger-service` serves `POST /transactions` while `settlement-engine`
+  serves `GET /transactions` — the same path with different meanings).
+  Still blocked on the other: there is no CI pipeline
+  (no `.github/workflows` yet) whose failures there would be anything to
+  triage. Large enough to be its own plan.
 - **Auth boundary checks** (`tests/security`) — no service has auth yet;
   waiting on a project-wide auth decision.
 - **Mobile Appium E2E** — waiting on `mobile-app` screens getting
