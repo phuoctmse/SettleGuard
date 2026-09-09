@@ -8,7 +8,10 @@ import { EmptyState } from '../components/EmptyState';
 import { colors, typography } from '../theme';
 
 export function SettlementsScreen() {
-  const { data, isLoading, error } = useQuery({ queryKey: ['settlements'], queryFn: listSettlements });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['settlements'],
+    queryFn: listSettlements,
+  });
 
   if (isLoading) {
     return (
@@ -35,7 +38,9 @@ export function SettlementsScreen() {
             <Text style={[typography.body, { color: colors.textPrimary }]}>
               Transactions: {item.transaction_count} · Total: {item.total_amount}
             </Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.created_at}</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              {item.created_at}
+            </Text>
           </Card>
         )}
         ListEmptyComponent={<EmptyState status="empty" message="No settlements." />}

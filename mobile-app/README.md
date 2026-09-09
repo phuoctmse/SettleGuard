@@ -47,6 +47,7 @@ Runs on port `8090` (not Expo's default `8081`, which collides with
 `npm start` / `npm run android` / `npm run ios` / `npm run web` rather than
 `npx expo start` directly, so the port stays fixed. This opens the Expo CLI
 menu. Press:
+
 - `i` to open in iOS simulator
 - `a` to open in Android emulator (note: from an Android emulator, use
   `10.0.2.2` instead of `localhost` in the four API URLs below — the
@@ -73,12 +74,12 @@ npm test -- src/screens/AccountListScreen.test.tsx
 The app requires four backend service base URLs, all set via environment
 variables (in `.env`). Each maps to one backend service:
 
-| Env var | Backend service | Default port |
-|---|---|---|
-| `EXPO_PUBLIC_ACCOUNTS_API_URL` | accounts-service | 8081 |
-| `EXPO_PUBLIC_LEDGER_API_URL` | ledger-service | 8080 |
-| `EXPO_PUBLIC_SETTLEMENT_API_URL` | settlement-engine | 8082 |
-| `EXPO_PUBLIC_NOTIFICATION_API_URL` | notification-service | 8083 |
+| Env var                            | Backend service      | Default port |
+| ---------------------------------- | -------------------- | ------------ |
+| `EXPO_PUBLIC_ACCOUNTS_API_URL`     | accounts-service     | 8081         |
+| `EXPO_PUBLIC_LEDGER_API_URL`       | ledger-service       | 8080         |
+| `EXPO_PUBLIC_SETTLEMENT_API_URL`   | settlement-engine    | 8082         |
+| `EXPO_PUBLIC_NOTIFICATION_API_URL` | notification-service | 8083         |
 
 ## Screens
 
