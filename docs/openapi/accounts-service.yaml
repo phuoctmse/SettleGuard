@@ -1,0 +1,408 @@
+openapi: 3.1.0
+info:
+  title: Accounts Service API
+  version: 1.0.0
+  description: The Accounts Service manages client businesses and their corresponding accounts. It handles creating, querying, and updating statuses for clients and accounts.
+servers:
+  - url: http://localhost:8081
+paths:
+  /health:
+    get:
+      operationId: checkHealth
+      summary: Health Check
+      description: Returns the health status of the service.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /clients:
+    post:
+      operationId: createClient
+      summary: Create Client
+      description: Creates a new client business.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+      responses:
+        '201':
+          description: Client created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          description: Invalid request body or missing name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /clients/{id}:
+    get:
+      operationId: getClient
+      summary: Get Client
+      description: Retrieves a client business by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the client.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The client business details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          description: Invalid client id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /clients/{id}/status:
+    patch:
+      operationId: updateClientStatus
+      summary: Update Client Status
+      description: Updates the status of an existing client business.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the client.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientStatusRequest'
+      responses:
+        '200':
+          description: Client status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          description: Invalid request body, invalid client id, or invalid status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /accounts:
+    post:
+      operationId: createAccount
+      summary: Create Account
+      description: Creates a new account for a specific client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Invalid request body or invalid client_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Client is suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: listAccounts
+      summary: List Accounts
+      description: Lists accounts belonging to a specific client.
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          description: The UUID of the client to filter accounts by.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A list of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        '400':
+          description: Missing or invalid client_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /accounts/{id}:
+    get:
+      operationId: getAccount
+      summary: Get Account
+      description: Retrieves an account by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the account.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Invalid account id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /accounts/{id}/status:
+    patch:
+      operationId: updateAccountStatus
+      summary: Update Account Status
+      description: Updates the status of an existing account.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UUID of the account.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountStatusRequest'
+      responses:
+        '200':
+          description: Account status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Invalid request body, invalid account id, or invalid status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+      required:
+        - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: invalid JSON body
+      required:
+        - error
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          example: Acme Corp
+        status:
+          type: string
+          enum: [active, suspended]
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+      required:
+        - id
+        - name
+        - status
+        - created_at
+    CreateClientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Acme Corp
+      required:
+        - name
+    UpdateClientStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, suspended]
+          example: suspended
+      required:
+        - status
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174001
+        client_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        external_ref:
+          type: string
+          example: REF-9876
+        status:
+          type: string
+          enum: [active, suspended, closed]
+          example: active
+        balance:
+          type: integer
+          format: int64
+          description: Amount in VND dong (integer, not cents)
+          example: 50000000
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-10-01T12:34:56.000Z"
+      required:
+        - id
+        - client_id
+        - status
+        - balance
+        - created_at
+        - updated_at
+    CreateAccountRequest:
+      type: object
+      properties:
+        client_id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        external_ref:
+          type: string
+          example: REF-9876
+      required:
+        - client_id
+        - external_ref
+    UpdateAccountStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, suspended, closed]
+          example: suspended
+      required:
+        - status
