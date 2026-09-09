@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,24 @@ import (
 	"github.com/phuoctmse/settleguard/settlement-engine/internal/outbox"
 	"github.com/phuoctmse/settleguard/settlement-engine/internal/risk"
 	"github.com/phuoctmse/settleguard/settlement-engine/internal/settlement"
+)
+
+// HTTP server timeouts. Kept identical across the three SettleGuard Go
+// services so all of them behave the same under slow or stalled clients.
+const (
+	// readHeaderTimeout bounds how long a client may take to send request
+	// headers -- the direct guard against Slowloris-style connection holding.
+	readHeaderTimeout = 5 * time.Second
+	// readTimeout bounds reading the whole request, headers plus body.
+	readTimeout = 15 * time.Second
+	// writeTimeout bounds writing the response, so a stuck client cannot pin
+	// a handler goroutine open indefinitely.
+	writeTimeout = 30 * time.Second
+	// idleTimeout bounds how long an idle keep-alive connection is kept.
+	idleTimeout = 120 * time.Second
+	// shutdownGrace bounds how long shutdown waits for in-flight requests to
+	// finish before the process exits anyway.
+	shutdownGrace = 15 * time.Second
 )
 
 func main() {
@@ -104,9 +123,40 @@ func main() {
 		addr = ":8082"
 	}
 
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+	}
+
+	serverErr := make(chan error, 1)
 	log.Printf("settlement-engine listening on %s", addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatal(err)
+	go func() {
+		// ErrServerClosed is the normal result of srv.Shutdown, not a failure.
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+			return
+		}
+		serverErr <- nil
+	}()
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			log.Fatalf("http server: %v", err)
+		}
+	case <-ctx.Done():
+		log.Print("shutdown signal received, draining http server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("http server shutdown: %v", err)
+		} else {
+			log.Print("http server shut down cleanly")
+		}
 	}
 }
 
