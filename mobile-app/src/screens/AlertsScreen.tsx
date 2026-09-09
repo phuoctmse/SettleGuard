@@ -43,7 +43,9 @@ export function AlertsScreen() {
               </Text>
               <StatusChip status={item.type} />
             </View>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.created_at}</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              {item.created_at}
+            </Text>
           </Card>
         )}
         ListEmptyComponent={<EmptyState status="empty" message="No alerts." />}
