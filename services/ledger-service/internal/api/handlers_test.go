@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,6 +46,31 @@ func TestCreateTransaction(t *testing.T) {
 	var created []map[string]any
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	require.Len(t, created, 2)
+}
+
+func TestCreateTransaction_MalformedJSONBody(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+	handlers := api.NewHandlers(repo)
+	server := httptest.NewServer(api.NewRouter(handlers))
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/transactions", "application/json", bytes.NewReader([]byte("{not json")))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	// The handler must stop after writing the 400. Reading the whole body and
+	// unmarshalling it as one object is what catches a missing `return`: without
+	// it the handler keeps going, hits ErrNoEntries, and appends a second error
+	// object to a response whose status line was already sent.
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(body, &errResp), "body is not a single JSON object: %s", body)
+	assert.Equal(t, "invalid JSON body", errResp["error"])
 }
 
 func TestListEntries_FiltersByAccount(t *testing.T) {

@@ -115,6 +115,7 @@ func (h *Handlers) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	var req createTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
 	}
 
 	entries := make([]ledger.Entry, 0, len(req.Entries))
