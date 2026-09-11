@@ -301,6 +301,30 @@ mỗi bên consume `account.updated`, dựng bảng chiếu
 `account_owners(account_id, client_id)` cục bộ, rồi từ chối request tham
 chiếu account không thuộc client đang gọi — đúng khuôn CROSS-01/CROSS-02.
 
+**`notification-service` cũng thuộc phạm vi này, và cần nhiều hơn hai
+service kia** (phát hiện qua security review 2026-09-12, bổ sung sau khi
+spec được viết). Bảng `notifications` không có cột tenant nào và
+`repository.list` là `WHERE TRUE` chỉ lọc theo `type`/`since`/`limit`, nên
+`GET /notifications` trả về cho **bất kỳ ai gọi được** toàn bộ
+`account_ids`, `amount`, `score`, `decision` và `triggered_rules` của mọi
+tenant. Trường cuối nặng nhất: nó tiết lộ chính xác rule chống gian lận nào
+đã bắt giao dịch nào ở mức tiền nào — đủ để dò ngược
+`SETTLEMENT_MISMATCH_THRESHOLD` và cửa sổ velocity mà không cần đoán mò.
+
+Auth ở gateway **không** sửa được lỗi này, vì không có cột nào để gắn danh
+tính vào. Và nó không phải bản nhẹ hơn của hai service kia mà là **tập hợp
+lớn hơn**: payload `transaction.risk-scored` chỉ mang `account_ids`, không
+mang `client_id`, nên `notification-service` cần đúng bảng chiếu
+`account_owners` đó để quy account về client **tại thời điểm `record()`**,
+rồi **ghi `client_id` xuống cột riêng** của `notifications` để đường đọc
+lọc được bằng bound parameter. Hai service kia chỉ cần bảng chiếu để *kiểm
+tra* lúc ghi; service này cần bảng chiếu *cộng thêm* một cột được persist,
+vì mỗi lần list là đọc lại lịch sử, không thể quy lại tenant cho từng row
+lúc query. Kèm một migration thêm cột và index theo `client_id`.
+
+Cho tới khi spec đó ra đời, endpoint này đọc được chéo tenant — gateway
+README phải ghi rõ.
+
 Đây là spec riêng, khối lượng ngang chính gateway. Nó chỉ có nghĩa **sau
 khi** đã có client và key, nên thứ tự này là đúng, không phải bỏ sót.
 
