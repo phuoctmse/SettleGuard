@@ -16,6 +16,10 @@ All services and mobile-app have working MVPs:
   `golangci-lint run ./...`, Test: `go test ./...`.
 - **`services/notification-service`** (Python) — event consumer for risk
   holds and settlements. Test: `pytest`.
+- **`services/gateway`** (Go, Postgres) — reverse proxy in front of the four
+  services: CORS, API-key auth, rate limiting, request ids. Build:
+  `go build ./...`, Lint: `golangci-lint run ./...`, Test:
+  `go test -count=1 -p 1 ./...`. Keys are issued with `cmd/adminctl`.
 - **`mobile-app`** (Expo/TypeScript) — read-oriented client for all backend
   services, with approve/reject actions on held transactions. Run:
   `npx expo start`, Test: `npm test`.
