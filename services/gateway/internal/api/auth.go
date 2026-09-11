@@ -30,6 +30,13 @@ func ClientIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	return id, ok
 }
 
+// ContextWithClientID stores id the way APIKeyAuth does. Exported so tests
+// of middleware that run after auth can build a request that already
+// carries a client, without going through a database.
+func ContextWithClientID(ctx context.Context, id uuid.UUID) context.Context {
+	return context.WithValue(ctx, clientIDKey{}, id)
+}
+
 // unauthorizedMessage is deliberately the same for a missing, malformed,
 // unknown or revoked key: the response must not reveal whether a key exists.
 const unauthorizedMessage = "unauthorized"
@@ -60,7 +67,7 @@ func APIKeyAuth(keys KeyLookup) func(http.Handler) http.Handler {
 			}
 
 			r.Header.Set(HeaderClientID, clientID.String())
-			ctx := context.WithValue(r.Context(), clientIDKey{}, clientID)
+			ctx := ContextWithClientID(r.Context(), clientID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
