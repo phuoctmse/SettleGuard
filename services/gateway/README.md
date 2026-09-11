@@ -75,3 +75,5 @@ thực tế gấp đôi. Redis khi cần scale.
 tính người dùng mobile/ops là spec riêng.
 
 **Graceful shutdown chưa được xác minh live trên Windows.** Code drain SIGTERM/SIGINT giống ba service kia (PR #18) và đúng khi đọc; nhưng từ Git Bash trên Windows, `kill -INT` không tới được tiến trình Go native nên chưa quan sát được log `shut down cleanly` khi chạy thật. Xác minh trên Linux/WSL hoặc Ctrl+C trong console thật.
+
+**Rate limit theo IP dùng địa chỉ TCP peer, không đọc `X-Forwarded-For`.** Đúng khi gateway là hop ngoài cùng. Đặt sau LB/Ingress/Cloudflare thì mọi request tới từ vài IP của proxy và cả hệ thống gộp vào một bucket 60 req/phút — tự gây sự cố ở lượng traffic thật đầu tiên. Khi deploy sau proxy: nâng `RATE_LIMIT_IP_PER_MINUTE` và chuyển throttling theo IP ra LB/WAF. Không tin `X-Forwarded-For` một cách ngây thơ — đó là lỗi tệ hơn.
