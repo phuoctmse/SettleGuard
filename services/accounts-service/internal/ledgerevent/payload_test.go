@@ -66,3 +66,41 @@ func TestBalanceDeltas_UnknownDirection(t *testing.T) {
 	_, err := ledgerevent.BalanceDeltas(entries)
 	assert.Error(t, err)
 }
+
+// Per-account deltas are plain int64 and can wrap. A wrapped delta would be
+// applied to Account.balance as if it were real, so BalanceDeltas must
+// refuse rather than return a nonsense number.
+func TestBalanceDeltas_RejectsOverflowingCredit(t *testing.T) {
+	accountID := uuid.New()
+	const max = int64(9223372036854775807)
+	entries := []ledgerevent.OutboxPayloadEntry{
+		{AccountID: accountID, Direction: "credit", Amount: max},
+		{AccountID: accountID, Direction: "credit", Amount: max},
+	}
+
+	_, err := ledgerevent.BalanceDeltas(entries)
+	assert.Error(t, err)
+}
+
+func TestBalanceDeltas_RejectsOverflowingDebit(t *testing.T) {
+	accountID := uuid.New()
+	const max = int64(9223372036854775807)
+	entries := []ledgerevent.OutboxPayloadEntry{
+		{AccountID: accountID, Direction: "debit", Amount: max},
+		{AccountID: accountID, Direction: "debit", Amount: max},
+	}
+
+	_, err := ledgerevent.BalanceDeltas(entries)
+	assert.Error(t, err)
+}
+
+func TestBalanceDeltas_RejectsNonPositiveAmount(t *testing.T) {
+	accountID := uuid.New()
+	for _, amount := range []int64{0, -5} {
+		entries := []ledgerevent.OutboxPayloadEntry{
+			{AccountID: accountID, Direction: "credit", Amount: amount},
+		}
+		_, err := ledgerevent.BalanceDeltas(entries)
+		assert.Error(t, err, "amount %d", amount)
+	}
+}

@@ -1,0 +1,2 @@
+ALTER TABLE settlements DROP CONSTRAINT settlements_total_amount_positive;
+ALTER TABLE transactions DROP CONSTRAINT transactions_amount_positive;

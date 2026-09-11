@@ -134,3 +134,19 @@ func TestListSettlements_MostRecentFirst(t *testing.T) {
 	assert.Equal(t, second.ID, list[0].ID)
 	assert.Equal(t, first.ID, list[1].ID)
 }
+
+// Three pending transactions of MaxInt64 sum, modulo 2^64, to 2^63-3: a
+// positive number that passes the settlements.total_amount > 0 CHECK and
+// would be persisted as the batch total. Two would wrap negative and be
+// caught by the CHECK; three is the case only a code-level guard catches.
+func TestRunBatch_RejectsOverflowingTotal(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+	const max = int64(9223372036854775807)
+	for i := 0; i < 3; i++ {
+		insertTransactionWithStatus(t, db, uuid.New(), max, settlement.StatusPendingSettlement)
+	}
+
+	_, err := repo.RunBatch(context.Background())
+	require.ErrorIs(t, err, settlement.ErrBatchTotalOverflow)
+}
