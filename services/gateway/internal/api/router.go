@@ -17,6 +17,9 @@ import (
 //
 //	RequestID -> CORS -> RateLimit(IP) -> APIKeyAuth -> RateLimit(client) -> Proxy
 //
+// Logger and RecoverJSON sit between RequestID and CORS, matching the other
+// services' routers: both need the request id, and a panic anywhere after
+// them must still answer with the §8 error body rather than an empty 500.
 // CORS sits before auth because a browser preflight carries no key.
 // /health is the only route outside the authenticated group.
 func NewRouter(cfg Config, keys KeyLookup) (http.Handler, error) {
@@ -38,7 +41,7 @@ func NewRouter(cfg Config, keys KeyLookup) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(RequestID)
 	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(RecoverJSON)
 	// go-chi/cors treats an EMPTY AllowedOrigins list as "allow every
 	// origin" -- the exact opposite of the fail-closed behaviour the spec
 	// requires. Deciding through AllowOriginFunc instead keeps the decision

@@ -12,8 +12,8 @@ import (
 )
 
 // sweepEvery is how many bucket creations happen between sweeps of idle
-// buckets. It bounds the map at roughly this many entries beyond the keys
-// with traffic inside the current window.
+// buckets. See RateLimiter for the bound this actually buys and the one it
+// does not.
 const sweepEvery = 1000
 
 // RateLimiter hands out one token bucket per key. It is in-memory and
@@ -22,9 +22,14 @@ const sweepEvery = 1000
 // doubles. Documented in the README; a shared store (Redis) is the fix
 // when the gateway is scaled out.
 //
-// The map does not grow without bound: every sweepEvery insertions, buckets
-// that have refilled completely are dropped. A full bucket is exactly the
-// state a new bucket starts in, so evicting it is invisible to the caller.
+// The map is bounded only while new keys arrive slower than roughly
+// sweepEvery * burst / 60 requests per second across distinct addresses:
+// below that rate, buckets refill to full before the next sweep and are
+// dropped; a sustained flood of distinct source addresses above it keeps
+// buckets partially spent and the map grows for the duration of the flood.
+// Residual per-IP throttling against that belongs at the load balancer or
+// WAF, outside the gateway. A full bucket is exactly the state a new
+// bucket starts in, so evicting it is invisible to the caller.
 // The IP tier runs before authentication, so without this an attacker could
 // mint an unbounded number of buckets simply by varying the source address.
 type RateLimiter struct {

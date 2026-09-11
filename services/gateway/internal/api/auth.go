@@ -68,6 +68,20 @@ func APIKeyAuth(keys KeyLookup) func(http.Handler) http.Handler {
 				return
 			}
 
+			// The gateway is the trust boundary. Everything upstream sees is
+			// the gateway's assertion, never the client's:
+			//   - Authorization: the key is verified here and goes no further --
+			//     no backend reads it, and forwarding a credential to four
+			//     processes that have no use for it is a leak waiting to happen.
+			//   - Connection: ReverseProxy strips every header the client names
+			//     in Connection AFTER the director runs, so a client sending
+			//     "Connection: X-Client-Id" would erase the header set below.
+			//     The gateway terminates the client's connection; the client's
+			//     hop-by-hop declarations have no business reaching upstream.
+			//   - X-Client-Id: Set, never Add, so any client-supplied value is
+			//     replaced rather than merely preceded.
+			r.Header.Del("Authorization")
+			r.Header.Del("Connection")
 			r.Header.Set(HeaderClientID, clientID.String())
 			ctx := ContextWithClientID(r.Context(), clientID)
 			next.ServeHTTP(w, r.WithContext(ctx))

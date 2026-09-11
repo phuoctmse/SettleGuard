@@ -17,13 +17,21 @@ import (
 	"github.com/phuoctmse/settleguard/gateway/internal/testutil"
 )
 
-// pathEcho answers every request with the path it received, so a test can
-// prove the service prefix was stripped before forwarding.
-func pathEcho(t *testing.T) *httptest.Server {
+// pathEcho answers every request with what it received: its own name, so a
+// test can prove which upstream the prefix actually reached; the path, so a
+// test can prove the prefix was stripped; and the three headers the gateway
+// controls at the trust boundary.
+func pathEcho(t *testing.T, name string) *httptest.Server {
 	t.Helper()
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"path": r.URL.Path, "client": r.Header.Get(api.HeaderClientID)})
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"upstream":      name,
+			"path":          r.URL.Path,
+			"client":        r.Header.Get(api.HeaderClientID),
+			"authorization": r.Header.Get("Authorization"),
+			"request_id":    r.Header.Get(api.HeaderRequestID),
+		})
 	}))
 	t.Cleanup(s.Close)
 	return s
@@ -43,13 +51,13 @@ func newRouterFixture(t *testing.T, origins []string) routerFixture {
 	_, raw, err := repo.Create(context.Background(), client, "t")
 	require.NoError(t, err)
 
-	ledger := pathEcho(t)
+	ledger := pathEcho(t, "ledger")
 	cfg := api.Config{
 		ListenAddr:               ":0",
 		LedgerUpstream:           ledger.URL,
-		AccountsUpstream:         pathEcho(t).URL,
-		SettlementUpstream:       pathEcho(t).URL,
-		NotificationsUpstream:    pathEcho(t).URL,
+		AccountsUpstream:         pathEcho(t, "accounts").URL,
+		SettlementUpstream:       pathEcho(t, "settlement").URL,
+		NotificationsUpstream:    pathEcho(t, "notifications").URL,
 		CORSAllowedOrigins:       origins,
 		RateLimitIPPerMinute:     1000,
 		RateLimitClientPerMinute: 1000,
@@ -81,15 +89,52 @@ func TestRouter_HealthNeedsNoKey(t *testing.T) {
 	assert.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
 }
 
+// Every prefix is checked against its own upstream, not just one: with a
+// single route verified, a transposed prefix-to-upstream pair would send a
+// tenant's requests to the wrong service and still pass.
 func TestRouter_RoutesByPrefixAndStripsIt(t *testing.T) {
 	f := newRouterFixture(t, nil)
-	rec := f.do(http.MethodGet, "/ledger/transactions", withKey(f.rawKey))
-	require.Equal(t, http.StatusOK, rec.Code)
+	cases := []struct {
+		request  string
+		wantPath string
+		upstream string
+	}{
+		{"/ledger/transactions", "/transactions", "ledger"},
+		{"/accounts/clients", "/clients", "accounts"},
+		{"/settlement/settlements", "/settlements", "settlement"},
+		{"/notifications/", "/", "notifications"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.request, func(t *testing.T) {
+			rec := f.do(http.MethodGet, tc.request, withKey(f.rawKey))
+			require.Equal(t, http.StatusOK, rec.Code)
 
+			var got map[string]string
+			require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+			assert.Equal(t, tc.upstream, got["upstream"], "prefix must reach its own upstream")
+			assert.Equal(t, tc.wantPath, got["path"], "prefix must be stripped before forwarding")
+			assert.Equal(t, f.client.String(), got["client"], "X-Client-Id must reach the upstream")
+		})
+	}
+}
+
+// The gateway is the trust boundary: a caller cannot erase the gateway's
+// X-Client-Id via Connection (ReverseProxy strips headers named there
+// after the director runs), and the bearer key must not travel upstream.
+func TestRouter_TrustBoundaryHeadersReachUpstreamCorrectly(t *testing.T) {
+	f := newRouterFixture(t, nil)
+	rec := f.do(http.MethodGet, "/ledger/transactions", func(r *http.Request) {
+		r.Header.Set("Authorization", "Bearer "+f.rawKey)
+		r.Header.Set(api.HeaderClientID, uuid.New().String())                   // spoof attempt
+		r.Header.Set("Connection", api.HeaderClientID+", "+api.HeaderRequestID) // erasure attempt
+		r.Header.Set(api.HeaderRequestID, "trace-42")
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
 	var got map[string]string
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
-	assert.Equal(t, "/transactions", got["path"], "prefix must be stripped before forwarding")
-	assert.Equal(t, f.client.String(), got["client"], "X-Client-Id must reach the upstream")
+	assert.Equal(t, f.client.String(), got["client"], "X-Client-Id must be the authenticated client, not erased or spoofed")
+	assert.Equal(t, "trace-42", got["request_id"], "X-Request-Id must survive a Connection-header erasure attempt")
+	assert.Empty(t, got["authorization"], "the raw API key must never reach an upstream")
 }
 
 func TestRouter_ProtectedPrefixWithoutKeyIs401(t *testing.T) {
