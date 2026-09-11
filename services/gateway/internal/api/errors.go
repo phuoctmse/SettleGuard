@@ -10,8 +10,6 @@ import (
 
 // writeError sends the {"error": "..."} body every SettleGuard Go service
 // uses, so a client needs one parser for gateway and upstream errors alike.
-//
-//nolint:unused // called by middleware throughout the api package
 func writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
