@@ -90,7 +90,7 @@ so a short-lived JWT. A single shared API key was rejected because a key
 shipped inside a mobile bundle is extractable, and because approve/reject
 on a held transaction is a human decision that must be attributable to a
 person — one shared key erases that audit trail. Verification belongs at
-the gateway (also not yet built) so the four backend services stay
+the gateway (now built in `services/gateway`) so the four backend services stay
 unchanged and auth is implemented once rather than four times across three
 separate Go modules and one Python service.
 
