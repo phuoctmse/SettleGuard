@@ -338,6 +338,26 @@ thêm một hạ tầng phải vận hành, thuộc phần devops người dùng
 in-memory và **ghi rõ giới hạn này trong README** thay vì kéo Redis vào lúc
 chưa scale.
 
+**Bổ sung 2026-09-12, từ review khi thi công.** Bản thiết kế đầu để map
+bucket theo key tăng mãi không evict. Vì tầng IP chạy *trước* auth, kẻ tấn
+công chỉ cần đổi IP nguồn liên tục là tạo vô hạn bucket — cạn bộ nhớ ngay
+tại middleware sinh ra để chặn dò key. Quyết định: sửa ngay, không park.
+
+Cách sửa (quét lười, không goroutine): cứ mỗi `sweepEvery` (1000) lần tạo
+bucket mới, xoá mọi bucket đã **đầy token**. Bucket đầy có trạng thái y hệt
+bucket vừa tạo, nên xoá rồi tạo lại là vô hình với caller — không đổi hành
+vi cho bất kỳ ai. Kèm theo: `NewRateLimiter` panic rõ ràng với rate không
+dương thay vì chia cho 0.
+
+**Giới hạn thật của cách sửa này, nói thẳng:** map chỉ bị chặn khi tốc độ
+tạo key mới thấp hơn khoảng `sweepEvery × burst / 60` req/s trên các IP
+khác nhau — vì dưới ngưỡng đó bucket kịp đầy trước lần quét. Một trận flood
+IP lạ *bền vững* vượt ngưỡng đó vẫn giữ bucket không đầy và map vẫn tăng
+trong suốt thời gian flood. Bản sửa nâng rào cản từ "một request mỗi IP" lên
+"hàng nghìn req/s bền vững trên hàng nghìn IP", chứ không đóng tuyệt đối.
+Phần còn lại thuộc hạ tầng mạng (rate limit ở LB/WAF theo IP), là phần
+devops người dùng tự quản — không phải việc của gateway.
+
 ## 11. Để lại cho việc khác
 
 - **JWT + danh tính người dùng** — §1
