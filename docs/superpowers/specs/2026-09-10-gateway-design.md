@@ -317,7 +317,12 @@ chưa scale.
 ## 11. Để lại cho việc khác
 
 - **JWT + danh tính người dùng** — §1
-- **Phân quyền theo quyền sở hữu account** — §10.1
+- **Phân quyền theo quyền sở hữu account** — §10.1. Thứ tự đã chốt
+  2026-09-12: làm **sau khi có CI**, không phải ngay sau gateway. Lý do:
+  spec đó đụng vào cả `ledger-service` lẫn `settlement-engine` bằng
+  consumer và bảng chiếu mới, tức là sửa đường ghi của sổ cái. Có CI trước
+  thì thay đổi đó được máy kiểm chứng thay vì dựa vào việc chạy test thủ
+  công — và chính gateway ở spec này cũng được hưởng điều đó.
 - **`AUTH-01` vào `docs/BUSINESS_RULES.md`** — chỉ thêm khi gateway đã chạy,
   vì file đó chỉ khẳng định invariant *đã đúng trong code*
 - **`securitySchemes` cho 4 file `docs/openapi/*.yaml`** — cùng thời điểm
