@@ -151,3 +151,23 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   hai việc này atomic với nhau.
   **Ở đâu:** `internal/outbox` (bảng `outbox_events` + `Relay`) ở từng
   service.
+
+- **MONEY-01** — Mọi trường tiền (`amount` ở `ledger_entries`,
+  `transactions`, `settlements`; `balance` ở `accounts`) là **số nguyên
+  VND, đơn vị đồng** — không phải cents, không nhân/chia 100 ở bất kỳ
+  đâu. Kiểu lưu là `BIGINT`; không dùng `float`/`double` cho tiền.
+  Hiển thị thì format phân tách hàng nghìn (`10.000.000 ₫`), còn giá trị
+  truyền qua API vẫn là số nguyên trần.
+  **Vì sao:** trước đây đơn vị này chỉ tồn tại ngầm — không code, docs
+  hay test nào nói `amount` là gì, nên ngưỡng `SETTLEMENT_MISMATCH_THRESHOLD
+  = 10000000` có thể đọc thành "10 triệu đồng" hoặc "100.000 USD" tuỳ
+  người. Một hệ thống tài chính mà đơn vị tiền không xác định thì mọi
+  ngưỡng rủi ro, mọi so sánh số dư và mọi con số hiển thị đều mơ hồ. VND
+  không có đơn vị phụ trên thực tế nên lưu thẳng số đồng là biểu diễn
+  đúng, tránh hẳn lớp nhân/chia 100 vốn là nguồn lỗi kinh điển. Số
+  nguyên (không phải float) vì sai số dấu phẩy động làm hỏng bất biến
+  double-entry ở LEDGER-01.
+  **Ở đâu:** cột `amount`/`balance` trong migration của cả 4 service;
+  `risk.Config.MismatchThreshold`; helper format tiền phía `mobile-app`.
+  Charter chốt v1 đơn tệ nên chưa có cột `currency` — thêm đa tệ là thay
+  đổi lớn, phải sửa rule này trước.

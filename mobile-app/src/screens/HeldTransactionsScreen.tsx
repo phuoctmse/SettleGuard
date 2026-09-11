@@ -12,7 +12,10 @@ import { colors, spacing, typography } from '../theme';
 
 export function HeldTransactionsScreen() {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useQuery({ queryKey: ['held-transactions'], queryFn: listHeldTransactions });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['held-transactions'],
+    queryFn: listHeldTransactions,
+  });
   const [actionError, setActionError] = useState<string | null>(null);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['held-transactions'] });
@@ -50,7 +53,9 @@ export function HeldTransactionsScreen() {
         data={data}
         keyExtractor={(t) => t.id}
         ListHeaderComponent={
-          actionError ? <Text style={[typography.body, styles.errorText]}>{actionError}</Text> : null
+          actionError ? (
+            <Text style={[typography.body, styles.errorText]}>{actionError}</Text>
+          ) : null
         }
         renderItem={({ item }) => {
           const approving = approve.variables === item.id && approve.isPending;
@@ -89,7 +94,12 @@ export function HeldTransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  rowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   errorText: { padding: spacing.lg, color: colors.danger },
 });

@@ -44,7 +44,9 @@ func TestTotalAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ledgerevent.TotalAmount(tt.entries))
+			got, err := ledgerevent.TotalAmount(tt.entries)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -125,4 +127,45 @@ func TestOccurredAt(t *testing.T) {
 			assert.True(t, tt.want.Equal(ledgerevent.OccurredAt(tt.entries)))
 		})
 	}
+}
+
+// TotalAmount is the input to the mismatch_threshold rule, which is the
+// backstop against oversized transactions. It must not trust the publisher:
+// a sum that wraps, or an entry it cannot interpret, has to surface as an
+// error the consumer terminates on -- never as a small number that quietly
+// sails under the threshold.
+func TestTotalAmount_RejectsOverflowingDebits(t *testing.T) {
+	acc := uuid.New()
+	const max = int64(9223372036854775807)
+	entries := []ledgerevent.OutboxPayloadEntry{
+		{AccountID: acc, Direction: "debit", Amount: max},
+		{AccountID: acc, Direction: "debit", Amount: max},
+	}
+
+	_, err := ledgerevent.TotalAmount(entries)
+	assert.Error(t, err)
+}
+
+func TestTotalAmount_RejectsNonPositiveAmount(t *testing.T) {
+	acc := uuid.New()
+	for _, amount := range []int64{0, -1} {
+		entries := []ledgerevent.OutboxPayloadEntry{
+			{AccountID: acc, Direction: "debit", Amount: amount},
+		}
+		_, err := ledgerevent.TotalAmount(entries)
+		assert.Error(t, err, "amount %d", amount)
+	}
+}
+
+// accounts-service's BalanceDeltas already errors on an unknown direction;
+// TotalAmount silently skipped it, so a payload of mis-cased or foreign
+// directions scored as amount 0 and never tripped the threshold.
+func TestTotalAmount_RejectsUnknownDirection(t *testing.T) {
+	acc := uuid.New()
+	entries := []ledgerevent.OutboxPayloadEntry{
+		{AccountID: acc, Direction: "refund", Amount: 100},
+	}
+
+	_, err := ledgerevent.TotalAmount(entries)
+	assert.Error(t, err)
 }

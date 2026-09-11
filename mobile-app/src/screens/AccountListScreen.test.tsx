@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AccountListScreen } from './AccountListScreen';
@@ -13,7 +13,14 @@ function renderWithQuery(ui: React.ReactElement) {
 
 it('renders accounts returned by listAccounts', async () => {
   (accountsApi.listAccounts as jest.Mock).mockResolvedValue([
-    { id: 'acc-1', client_id: 'client-123', external_ref: 'ext-1', status: 'active', balance: 500, created_at: '' },
+    {
+      id: 'acc-1',
+      client_id: 'client-123',
+      external_ref: 'ext-1',
+      status: 'active',
+      balance: 500,
+      created_at: '',
+    },
   ]);
 
   const { findByText } = await renderWithQuery(

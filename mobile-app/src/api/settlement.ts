@@ -1,15 +1,6 @@
 import { env } from '../config/env';
 import { fetchJson } from './http';
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  score: number;
-  decision: 'pass' | 'hold';
-  status: 'pending_settlement' | 'held' | 'settled' | 'rejected';
-  triggered_rules: string[];
-  scored_at: string;
-}
+import type { Settlement, Transaction } from './types';
 
 export function listHeldTransactions(): Promise<Transaction[]> {
   return fetchJson<Transaction[]>(`${env.settlementApiUrl}/transactions?status=held`);
@@ -21,14 +12,6 @@ export function approveTransaction(id: string): Promise<void> {
 
 export function rejectTransaction(id: string): Promise<void> {
   return fetchJson<void>(`${env.settlementApiUrl}/transactions/${id}/reject`, { method: 'POST' });
-}
-
-export interface Settlement {
-  id: string;
-  transaction_ids: string[];
-  transaction_count: number;
-  total_amount: number;
-  created_at: string;
 }
 
 export function listSettlements(): Promise<Settlement[]> {

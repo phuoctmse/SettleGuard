@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,6 +46,31 @@ func TestCreateTransaction(t *testing.T) {
 	var created []map[string]any
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	require.Len(t, created, 2)
+}
+
+func TestCreateTransaction_MalformedJSONBody(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+	handlers := api.NewHandlers(repo)
+	server := httptest.NewServer(api.NewRouter(handlers))
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/transactions", "application/json", bytes.NewReader([]byte("{not json")))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	// The handler must stop after writing the 400. Reading the whole body and
+	// unmarshalling it as one object is what catches a missing `return`: without
+	// it the handler keeps going, hits ErrNoEntries, and appends a second error
+	// object to a response whose status line was already sent.
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(body, &errResp), "body is not a single JSON object: %s", body)
+	assert.Equal(t, "invalid JSON body", errResp["error"])
 }
 
 func TestListEntries_FiltersByAccount(t *testing.T) {
@@ -110,4 +136,60 @@ func TestListEntries_RequiresQueryParam(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// End-to-end shape of the overflow attack: three credits whose int64 sum
+// wraps to 2, "balanced" by a 2-dong debit. Must be a 422 from the ledger's
+// own validation, never a 500 from the default branch of the error switch.
+func TestCreateTransaction_RejectsOverflowingAmounts(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+	handlers := api.NewHandlers(repo)
+	server := httptest.NewServer(api.NewRouter(handlers))
+	defer server.Close()
+
+	const max = int64(9223372036854775807)
+	attacker := uuid.New().String()
+	victim := uuid.New().String()
+	body := map[string]any{
+		"entries": []map[string]any{
+			{"account_id": attacker, "direction": "credit", "amount": max, "reason": "x"},
+			{"account_id": attacker, "direction": "credit", "amount": max, "reason": "x"},
+			{"account_id": attacker, "direction": "credit", "amount": 4, "reason": "x"},
+			{"account_id": victim, "direction": "debit", "amount": 2, "reason": "x"},
+		},
+	}
+	payload, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	resp, err := http.Post(server.URL+"/transactions", "application/json", bytes.NewReader(payload))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+}
+
+func TestCreateTransaction_RejectsTooManyEntries(t *testing.T) {
+	conn := testutil.NewTestDB(t)
+	repo := ledger.NewRepository(conn)
+	handlers := api.NewHandlers(repo)
+	server := httptest.NewServer(api.NewRouter(handlers))
+	defer server.Close()
+
+	n := ledger.MaxEntriesPerTransaction + 1
+	debitor := uuid.New().String()
+	creditor := uuid.New().String()
+	entries := make([]map[string]any, 0, n)
+	for i := 0; i < n-1; i++ {
+		entries = append(entries, map[string]any{"account_id": debitor, "direction": "debit", "amount": 1, "reason": "x"})
+	}
+	entries = append(entries, map[string]any{"account_id": creditor, "direction": "credit", "amount": n - 1, "reason": "x"})
+	payload, err := json.Marshal(map[string]any{"entries": entries})
+	require.NoError(t, err)
+
+	resp, err := http.Post(server.URL+"/transactions", "application/json", bytes.NewReader(payload))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
 }
