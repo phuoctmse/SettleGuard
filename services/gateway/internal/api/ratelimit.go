@@ -9,21 +9,38 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// sweepEvery is how many bucket creations happen between sweeps of idle
+// buckets. It bounds the map at roughly this many entries beyond the keys
+// with traffic inside the current window.
+const sweepEvery = 1000
+
 // RateLimiter hands out one token bucket per key. It is in-memory and
 // therefore correct for a single gateway instance only: two replicas each
 // enforce the configured limit independently, so the effective limit
 // doubles. Documented in the README; a shared store (Redis) is the fix
 // when the gateway is scaled out.
+//
+// The map does not grow without bound: every sweepEvery insertions, buckets
+// that have refilled completely are dropped. A full bucket is exactly the
+// state a new bucket starts in, so evicting it is invisible to the caller.
+// The IP tier runs before authentication, so without this an attacker could
+// mint an unbounded number of buckets simply by varying the source address.
 type RateLimiter struct {
 	mu      sync.Mutex
 	buckets map[string]*rate.Limiter
 	every   rate.Limit
 	burst   int
+	inserts int
 }
 
 // NewRateLimiter allows perMinute requests per key, with a burst of the
 // same size so a client that was idle can spend its whole minute at once.
+// perMinute must be positive; the configuration layer rejects zero and
+// negatives, so a violation here is a programming error, not bad input.
 func NewRateLimiter(perMinute int) *RateLimiter {
+	if perMinute <= 0 {
+		panic("api: NewRateLimiter: perMinute must be positive")
+	}
 	return &RateLimiter{
 		buckets: make(map[string]*rate.Limiter),
 		every:   rate.Every(time.Minute / time.Duration(perMinute)),
@@ -38,9 +55,27 @@ func (l *RateLimiter) Allow(key string) bool {
 	if !ok {
 		b = rate.NewLimiter(l.every, l.burst)
 		l.buckets[key] = b
+		l.inserts++
+		if l.inserts >= sweepEvery {
+			l.inserts = 0
+			l.sweepLocked()
+		}
 	}
 	l.mu.Unlock()
 	return b.Allow()
+}
+
+// sweepLocked drops every bucket that has refilled to full. The caller
+// holds l.mu. A bucket removed here may still be referenced by the Allow
+// call that triggered the sweep; that is fine -- the pointer stays valid
+// and the next request for that key simply starts a fresh, equally full
+// bucket.
+func (l *RateLimiter) sweepLocked() {
+	for k, b := range l.buckets {
+		if b.Tokens() >= float64(l.burst) {
+			delete(l.buckets, k)
+		}
+	}
 }
 
 const rateLimitedMessage = "rate limit exceeded"

@@ -67,3 +67,8 @@ func TestRateLimitByClient_WithoutClientIsAnInternalError(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 }
+
+func TestNewRateLimiter_PanicsOnNonPositiveRate(t *testing.T) {
+	assert.Panics(t, func() { api.NewRateLimiter(0) })
+	assert.Panics(t, func() { api.NewRateLimiter(-1) })
+}
