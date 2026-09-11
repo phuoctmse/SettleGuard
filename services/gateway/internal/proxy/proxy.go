@@ -4,13 +4,14 @@
 package proxy
 
 import (
-	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/phuoctmse/settleguard/gateway/internal/httperror"
 )
 
 // New returns a handler that reverse-proxies to upstream. responseTimeout
@@ -30,9 +31,7 @@ func New(upstream *url.URL, responseTimeout time.Duration) http.Handler {
 		if errors.As(err, &netErr) && netErr.Timeout() {
 			status, message = http.StatusGatewayTimeout, "upstream timeout"
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+		httperror.Write(w, status, message)
 	}
 
 	return rp

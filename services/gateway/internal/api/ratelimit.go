@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/phuoctmse/settleguard/gateway/internal/httperror"
 )
 
 // sweepEvery is how many bucket creations happen between sweeps of idle
@@ -91,7 +93,7 @@ func RateLimitByIP(l *RateLimiter) func(http.Handler) http.Handler {
 				host = r.RemoteAddr
 			}
 			if !l.Allow(host) {
-				writeError(w, http.StatusTooManyRequests, rateLimitedMessage)
+				httperror.Write(w, http.StatusTooManyRequests, rateLimitedMessage)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -108,11 +110,11 @@ func RateLimitByClient(l *RateLimiter) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientID, ok := ClientIDFromContext(r.Context())
 			if !ok {
-				writeError(w, http.StatusInternalServerError, "internal error")
+				httperror.Write(w, http.StatusInternalServerError, "internal error")
 				return
 			}
 			if !l.Allow(clientID.String()) {
-				writeError(w, http.StatusTooManyRequests, rateLimitedMessage)
+				httperror.Write(w, http.StatusTooManyRequests, rateLimitedMessage)
 				return
 			}
 			next.ServeHTTP(w, r)

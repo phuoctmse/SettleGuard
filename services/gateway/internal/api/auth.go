@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/phuoctmse/settleguard/gateway/internal/httperror"
 )
 
 // HeaderClientID is set by the gateway on every authenticated request and
@@ -54,7 +56,7 @@ func APIKeyAuth(keys KeyLookup) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			raw, ok := bearerToken(r.Header.Get("Authorization"))
 			if !ok {
-				writeError(w, http.StatusUnauthorized, unauthorizedMessage)
+				httperror.Write(w, http.StatusUnauthorized, unauthorizedMessage)
 				return
 			}
 
@@ -62,7 +64,7 @@ func APIKeyAuth(keys KeyLookup) func(http.Handler) http.Handler {
 			if err != nil {
 				// Distinct reasons are logged (with the request id) but not returned.
 				log.Printf("gateway: auth failed request_id=%s: %v", r.Header.Get(HeaderRequestID), err)
-				writeError(w, http.StatusUnauthorized, unauthorizedMessage)
+				httperror.Write(w, http.StatusUnauthorized, unauthorizedMessage)
 				return
 			}
 

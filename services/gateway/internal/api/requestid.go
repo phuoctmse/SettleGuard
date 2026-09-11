@@ -1,3 +1,6 @@
+// Package api is the gateway's HTTP layer: the middleware chain, the
+// router, and its configuration. It knows nothing about how keys are
+// stored; that is internal/auth, reached through the KeyLookup interface.
 package api
 
 import (
