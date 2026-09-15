@@ -95,13 +95,19 @@ unchanged and auth is implemented once rather than four times across three
 separate Go modules and one Python service.
 
 Until the gateway is deployed in front of them, **the four backend
-services themselves have no authentication** — `POST
-/transactions` and every other endpoint are open. This is the single
-largest gap between the current system and anything deployable. It is
-deliberately absent from `docs/BUSINESS_RULES.md`, which asserts only
-invariants that already hold in code; it becomes `AUTH-01` there when the
-gateway exists, and `docs/openapi/*.yaml` gain their `securitySchemes` at
-the same time.
+services themselves have no authentication** — `POST /transactions` and
+every other endpoint are open on ports 8080–8083. The gateway closes this
+only for traffic that actually goes through it: `AUTH-01`–`AUTH-03` in
+`docs/BUSINESS_RULES.md` state what it guarantees and say plainly that the
+direct ports bypass all of it, and all five `docs/openapi/*.yaml` (the four
+services plus `gateway.yaml`) now carry `securitySchemes`.
+
+The larger remaining gap is that **authentication is not authorization**: a
+valid key identifies the calling client business, but no service checks
+which accounts that client may touch, so any valid key can post entries
+against any account and `GET /notifications` returns every client's rows.
+Ownership enforcement is an unbuilt spec, sequenced after CI —
+`docs/superpowers/specs/2026-09-10-gateway-design.md` §10.1 and §11.
 
 Key domain entities shared across services: Account, LedgerEntry,
 Transaction, RiskScore, Settlement (batch), Alert/Notification.
