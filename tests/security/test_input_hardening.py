@@ -122,7 +122,9 @@ def test_nul_byte_in_text_field_is_refused(gw):
 
 
 # OWASP API4:2023 Unrestricted Resource Consumption (unvalidated limit)
-@pytest.mark.xfail(strict=True, reason="SG-PT-07: negative ?limit= on /notifications is not validated and returns 5xx")
+# Destructive: one limit=-1 request leaves /notifications down until notification-service restarts.
+@pytest.mark.destructive
+@pytest.mark.xfail(strict=True, reason="SG-PT-07: negative ?limit= on /notifications is not validated; the upstream drops the connection and /notifications stays unavailable until notification-service restarts")
 def test_negative_notification_limit_is_refused(gw):
     http, *_ = gw
     resp = http.get("/notifications/notifications", params={"limit": "-1"})
