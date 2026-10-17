@@ -1,0 +1,198 @@
+openapi: 3.1.0
+info:
+  title: Gateway API
+  version: 1.0.0
+  description: >-
+    The gateway is the single public entrypoint to SettleGuard. It owns no
+    business entity and publishes no event; it authenticates client
+    businesses, rate limits them, applies CORS, stamps a request id, and
+    reverse-proxies to one of four backend services.
+
+
+    ## Routing
+
+
+    A prefix selects the upstream and is stripped before forwarding, so
+    `POST /ledger/transactions` reaches ledger-service as
+    `POST /transactions`:
+
+
+    | Prefix | Upstream service | Contract |
+    | --- | --- | --- |
+    | `/ledger/*` | ledger-service | `ledger-service.yaml` |
+    | `/accounts/*` | accounts-service | `accounts-service.yaml` |
+    | `/settlement/*` | settlement-engine | `settlement-engine.yaml` |
+    | `/notifications/*` | notification-service | `notification-service.yaml` |
+
+
+    The proxied operations are not repeated here: each service's own spec
+    describes them, and lists this gateway as its first server. The only path
+    documented below is the gateway's own health endpoint. A prefix that
+    matches no upstream is a `404` from the gateway, not from a service.
+
+
+    ## Authentication
+
+
+    Every request except `GET /health` needs
+    `Authorization: Bearer sg_live_...` — an API key issued to a client
+    business with the gateway's `adminctl` CLI. The gateway stores only the
+    key's SHA-256 and strips the `Authorization` header before forwarding, so
+    no backend service ever sees the credential.
+
+
+    Authentication is not authorization. A valid key establishes *which*
+    client business is calling; no service yet checks *which* accounts that
+    client may touch, so any valid key can post entries against any account.
+    Ownership enforcement is a separate, unbuilt spec — see
+    `docs/superpowers/specs/2026-09-10-gateway-design.md` §10.1.
+
+
+    ## Headers
+
+
+    `X-Request-Id` is honoured if the client sends one and generated
+    otherwise; it is forwarded upstream and echoed on every response,
+    including `401` and `429`.
+
+
+    `X-Client-Id` is set by the gateway on the forwarded request from the
+    verified key. It is a gateway assertion, never a client input: a value
+    supplied by the caller is replaced, and callers cannot use it to claim an
+    identity.
+
+
+    ## Rate limits
+
+
+    Two in-memory fixed windows, both returning `429`: 60 requests/minute per
+    IP (before authentication) and 600 requests/minute per client business
+    (after it). Both are per gateway instance, so running replicas multiplies
+    the effective limit. The IP window keys on the TCP peer address and does
+    not read `X-Forwarded-For`, which is correct only while the gateway is the
+    outermost hop.
+
+
+    ## Errors the gateway originates
+
+
+    These five never reach a service and are the gateway's own answer. Every
+    one carries the same body as the four services, `{"error": "..."}`, so a
+    client needs a single parser. They are defined under
+    `components/responses` so that a generated client can share them:
+
+
+    | Status | Component | Body |
+    | --- | --- | --- |
+    | `401` | `Unauthorized` | `unauthorized` |
+    | `404` | `NotFound` | `not found` |
+    | `429` | `TooManyRequests` | `rate limit exceeded` |
+    | `502` | `BadGateway` | `upstream unavailable` |
+    | `504` | `GatewayTimeout` | `upstream timeout` |
+
+
+    Any other status is the upstream service's own, passed through unchanged.
+servers:
+  - url: http://localhost:8000
+    description: Local development. The listen address is LISTEN_ADDR.
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      operationId: checkGatewayHealth
+      summary: Gateway Health Check
+      description: >-
+        Liveness of the gateway process itself. It reports nothing about the
+        four upstream services — each answers its own health endpoint through
+        its prefix, e.g. `GET /ledger/health`, which does require a key.
+
+
+        The only unauthenticated route on the gateway. Still rate limited by
+        IP.
+      security: []
+      responses:
+        '200':
+          description: The gateway is running.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        An API key issued to a client business. Created, listed and revoked
+        with `adminctl`, which is run by an operator with database access —
+        there is no HTTP endpoint that issues keys. The raw key is shown once
+        at creation; the database keeps only its SHA-256.
+  responses:
+    Unauthorized:
+      description: >-
+        The key is missing, malformed, unknown or revoked. The four cases are
+        deliberately indistinguishable, so that a response cannot be used to
+        probe which keys exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+    NotFound:
+      description: The path matches no upstream prefix.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not found
+    TooManyRequests:
+      description: The per-IP or per-client rate limit was exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: rate limit exceeded
+    BadGateway:
+      description: The upstream service could not be reached.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: upstream unavailable
+    GatewayTimeout:
+      description: >-
+        The upstream service did not start responding within
+        UPSTREAM_TIMEOUT_SECONDS (default 30).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: upstream timeout
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+      required:
+        - status
+    Error:
+      type: object
+      description: >-
+        The single error shape the gateway emits, matching the four backend
+        services so a client needs one parser for every failure.
+      properties:
+        error:
+          type: string
+          example: unauthorized
+      required:
+        - error
