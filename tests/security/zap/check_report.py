@@ -47,11 +47,11 @@ def _table(title, alerts):
 def main(argv):
     accepted = load_accepted(argv[1])
     reports = [json.loads(Path(p).read_text(encoding="utf-8")) for p in argv[2:]]
-    if not any(report.get("site") for report in reports):
-        print("**No ZAP results found — failing closed.**")
+    print("## ZAP API scan\n")
+    if not reports or not all(report.get("site") for report in reports):
+        print("**Missing or empty ZAP results — failing closed.**")
         return 1
     high, medium = evaluate(reports, accepted)
-    print("## ZAP API scan\n")
     print(_table("High (unaccepted) — fails the build", high))
     print(_table("Medium — reported only", medium))
     return 1 if high else 0

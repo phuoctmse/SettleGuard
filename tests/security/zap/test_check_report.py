@@ -52,4 +52,18 @@ def test_scan_with_no_results_fails_closed(tmp_path, capsys):
     report = tmp_path / "empty.json"
     report.write_text("{}", encoding="utf-8")
     assert main(["check_report.py", str(accepted), str(report)]) == 1
-    assert "No ZAP results found" in capsys.readouterr().out
+    assert "failing closed" in capsys.readouterr().out
+
+
+def test_one_empty_report_among_good_ones_fails_closed(tmp_path):
+    import json
+
+    from check_report import main
+
+    accepted = tmp_path / "accepted.yaml"
+    accepted.write_text("accepted: []\n", encoding="utf-8")
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(_report()), encoding="utf-8")
+    bad = tmp_path / "bad.json"
+    bad.write_text("{}", encoding="utf-8")
+    assert main(["check_report.py", str(accepted), str(good), str(bad)]) == 1

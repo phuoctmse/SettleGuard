@@ -46,7 +46,8 @@ for spec in ledger-service accounts-service settlement-engine notification-servi
   code=${PIPESTATUS[0]}   # ZAP's own exit code, not tee's
   set -e
   echo "::endgroup::"
-  [ "$code" -eq 3 ] && { echo "ZAP failed to scan $spec"; exit 3; }
+  case $code in 0|1|2) ;; *) echo "ZAP failed on $spec (exit $code)"; exit 3;; esac
+  [ -s "$OUT/$spec.json" ] || { echo "ZAP produced no report for $spec"; exit 3; }
 done
 
 python "$ZAP_DIR/check_report.py" "$ZAP_DIR/accepted_risks.yaml" "$OUT"/*.json
