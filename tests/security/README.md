@@ -19,6 +19,9 @@ Vì sao hai instance: ZAP và các test khác bắn từ cùng một IP, nên v�
 thật (60/phút) mọi thứ sẽ bị 429. Instance `:8001` để riêng cho test rate limit.
 
     cd tests && python -m pytest security -v -rxX
+
+Các lệnh ZAP dưới đây chạy từ **thư mục gốc repo** (không phải `tests/`):
+
     bash tests/security/zap/run_zap.sh      # Linux/WSL
     ZAP_GATEWAY_URL=http://host.docker.internal:8000 ZAP_DOCKER_NETWORK=bridge bash tests/security/zap/run_zap.sh   # Windows (Git Bash, Docker Desktop)
 

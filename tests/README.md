@@ -33,14 +33,14 @@ themselves; this suite tests the system from the outside).
   (they are separate documents rather than one merged file because
   `ledger-service` serves `POST /transactions` while `settlement-engine`
   serves `GET /transactions` — the same path with different meanings).
-  Still blocked on the other: there is no CI pipeline
-  (no `.github/workflows` yet) whose failures there would be anything to
-  triage. Large enough to be its own plan.
+  The other is now partly met: CI exists in `.github/workflows`, but
+  there is no history of CI failures yet to triage. Large enough to be
+  its own plan.
 - **Mobile Appium E2E** — waiting on `mobile-app` screens getting
   `testID`/`accessibilityLabel` attributes, which is `mobile-app`'s own
   work, not `tests/`.
-- **CI wiring** to run `tests/api`/`tests/security` automatically —
-  depends on CI existing at all, out of scope here.
+- **CI wiring** for `tests/api` — not wired yet. `tests/security` runs
+  in the CI `security` job (pentests and ZAP).
 
 See `docs/superpowers/specs/2026-08-24-testing-suite-design.md` §8 ("Để
 lại cho việc khác") for the full rationale behind each of these.
