@@ -12,8 +12,13 @@ SQLI = ["' OR '1'='1", "'; DROP TABLE accounts; --", "\" OR 1=1 --", "1; SELECT 
 def gw(gateway_base_url, api_key_factory):
     key = api_key_factory()
     client = GatewayClient(gateway_base_url, key.raw_key)
-    acc1 = client.http.post("/accounts/accounts", json={"client_id": key.client_id}).json()["id"]
-    acc2 = client.http.post("/accounts/accounts", json={"client_id": key.client_id}).json()["id"]
+    ids = []
+    for _ in range(2):
+        resp = client.http.post("/accounts/accounts", json={"client_id": key.client_id})
+        if resp.status_code != 201:
+            pytest.fail(f"setup: account creation returned {resp.status_code}: {resp.text}")
+        ids.append(resp.json()["id"])
+    acc1, acc2 = ids
     return client.http, key.client_id, acc1, acc2
 
 
@@ -115,7 +120,7 @@ def test_malformed_path_ids_are_refused(gw, bad_id):
 
 
 # OWASP API8:2023 Security Misconfiguration (NUL byte reaches Postgres)
-@pytest.mark.xfail(strict=True, reason="SG-PT-06: NUL byte in a TEXT field reaches Postgres and returns 500")
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="SG-PT-06: NUL byte in a TEXT field reaches Postgres and returns 500")
 def test_nul_byte_in_text_field_is_refused(gw):
     http, *_ = gw
     _assert_refused_cleanly(http.post("/accounts/clients", json={"name": "a\u0000b"}))
@@ -133,7 +138,7 @@ def test_negative_notification_limit_is_refused(gw):
 
 
 # OWASP API4:2023 Unrestricted Resource Consumption (no body size limit)
-@pytest.mark.xfail(strict=True, reason="SG-PT-08: no request body size limit on any service")
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="SG-PT-08: no request body size limit on any service")
 def test_oversized_body_is_refused(gw):
     http, *_ = gw
     resp = http.post("/accounts/clients", json={"name": "x" * (5 * 1024 * 1024)})
