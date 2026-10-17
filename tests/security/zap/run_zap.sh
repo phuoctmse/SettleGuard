@@ -42,8 +42,8 @@ for spec in ledger-service accounts-service settlement-engine notification-servi
     ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
       -t "/zap/wrk/$spec.yaml" -f openapi -I \
       -r "$spec.html" -J "$spec.json" \
-      -z "-config scanner.maxScanDurationInMins=$ZAP_MAX_SCAN_MINUTES -config scanner.maxRuleDurationInMins=2"
-  code=$?
+      -z "-config scanner.maxScanDurationInMins=$ZAP_MAX_SCAN_MINUTES -config scanner.maxRuleDurationInMins=2" 2>&1 | tee "$OUT/$spec.log"
+  code=${PIPESTATUS[0]}   # ZAP's own exit code, not tee's
   set -e
   echo "::endgroup::"
   [ "$code" -eq 3 ] && { echo "ZAP failed to scan $spec"; exit 3; }
