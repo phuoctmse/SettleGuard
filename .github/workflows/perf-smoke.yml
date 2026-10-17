@@ -1,0 +1,126 @@
+name: Perf smoke
+
+# Manual only: a 20-user/30s Locust run against the scoring path with the
+# pass/fail limits in tests/perf/locustfile_settlement_scoring.py (failure
+# ratio <= 1%, p95 <= 100 ms). See docs/perf-baseline.md for where those
+# limits come from. Not run on pull requests.
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: Locust users
+        default: "20"
+      run_time:
+        description: Locust run time
+        default: 30s
+
+env:
+  # Same version as go.mod's golang-migrate dependency; notification-service
+  # shells out to this CLI for its migrations.
+  MIGRATE_VERSION: v4.19.1
+
+jobs:
+  locust-smoke:
+    runs-on: ubuntu-latest
+    env:
+      NATS_URL: nats://localhost:4222
+      LOG_DIR: ${{ github.workspace }}/perf-logs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/ledger-service/go.mod
+          cache-dependency-path: services/*/go.sum
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            tests/requirements.txt
+            services/notification-service/requirements.txt
+      - name: Install migrate CLI and Python dependencies
+        run: |
+          go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@${MIGRATE_VERSION}
+          pip install -r tests/requirements.txt -r services/notification-service/requirements.txt
+
+      - name: Start infra (Postgres + NATS)
+        run: |
+          # docker-compose.yml reads each service's .env as the Postgres
+          # env_file; those are gitignored, .env.example holds the values.
+          for s in ledger-service accounts-service settlement-engine notification-service gateway; do
+            cp "services/$s/.env.example" "services/$s/.env"
+          done
+          docker compose -f infra/docker/docker-compose.yml up -d \
+            ledger-postgres accounts-postgres settlement-postgres notification-postgres nats
+          # TCP check on purpose: first-boot initdb runs a temporary server
+          # on the unix socket only.
+          for pair in ledger-dev:ledger accounts-dev:accounts settlement-dev:settlement notification-dev:notification; do
+            container="settleguard-${pair%%:*}"; user="${pair##*:}"
+            for i in $(seq 1 60); do
+              docker exec "$container" pg_isready -h 127.0.0.1 -U "$user" >/dev/null 2>&1 && break
+              [ "$i" = 60 ] && { echo "$container never became ready"; exit 1; }
+              sleep 1
+            done
+          done
+          # The compose file starts nats without -m 8222, so wait for the
+          # INFO greeting on the client port rather than /healthz.
+          for i in $(seq 1 60); do
+            timeout 2 bash -c 'exec 3<>/dev/tcp/localhost/4222 && head -c 4 <&3' 2>/dev/null | grep -q INFO && break
+            [ "$i" = 60 ] && { echo "NATS never accepted connections"; exit 1; }
+            sleep 1
+          done
+
+      - name: Build and start services
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin" "$LOG_DIR"
+          for s in ledger-service accounts-service settlement-engine; do
+            (cd "services/$s" && go build -o "$RUNNER_TEMP/bin/$s" ./cmd/server)
+          done
+          wait_healthy() {
+            for i in $(seq 1 60); do
+              curl -fsS "$1/health" >/dev/null 2>&1 && { echo "$1 healthy"; return 0; }
+              sleep 1
+            done
+            echo "$1 not healthy after 60s"; return 1
+          }
+
+          DATABASE_URL="postgres://ledger:ledger@localhost:5433/ledger?sslmode=disable" \
+            nohup "$RUNNER_TEMP/bin/ledger-service" > "$LOG_DIR/ledger-service.log" 2>&1 &
+          wait_healthy http://localhost:8080
+          DATABASE_URL="postgres://accounts:accounts@localhost:5434/accounts?sslmode=disable" \
+            nohup "$RUNNER_TEMP/bin/accounts-service" > "$LOG_DIR/accounts-service.log" 2>&1 &
+          wait_healthy http://localhost:8081
+          # Same settings as the local baseline in docs/perf-baseline.md.
+          DATABASE_URL="postgres://settlement:settlement@localhost:5435/settlement?sslmode=disable" \
+          SETTLEMENT_BATCH_INTERVAL_SECONDS=5 \
+            nohup "$RUNNER_TEMP/bin/settlement-engine" > "$LOG_DIR/settlement-engine.log" 2>&1 &
+          wait_healthy http://localhost:8082
+          (cd services/notification-service && \
+            DATABASE_URL="postgres://notification:notification@localhost:5436/notification?sslmode=disable" \
+            PYTHONUNBUFFERED=1 nohup python main.py > "$LOG_DIR/notification-service.log" 2>&1 &)
+          wait_healthy http://localhost:8083
+
+      - name: Locust smoke
+        env:
+          USERS: ${{ inputs.users || '20' }}
+          RUN_TIME: ${{ inputs.run_time || '30s' }}
+        run: |
+          mkdir -p perf-results
+          locust -f tests/perf/locustfile_settlement_scoring.py --host=http://localhost:8080 \
+            --headless -u "$USERS" -r 5 -t "$RUN_TIME" \
+            --csv perf-results/smoke --html perf-results/smoke.html --only-summary
+
+      - name: Upload Locust results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: locust-smoke-results
+          path: perf-results/
+          if-no-files-found: warn
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: perf-service-logs
+          path: perf-logs/
+          if-no-files-found: warn

@@ -1,0 +1,79 @@
+[2026-10-17 22:23:45,340] ThomasTruong/INFO/locust.main: Starting Locust 2.46.4
+[2026-10-17 22:23:45,341] ThomasTruong/INFO/locust.main: Run time limit set to 30 seconds
+[2026-10-17 22:23:45,343] ThomasTruong/INFO/locust.runners: Ramping to 20 users at a rate of 5.00 per second
+[2026-10-17 22:23:45,361] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,364] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,365] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,367] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,374] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,375] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,381] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,384] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,391] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,394] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,399] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,402] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,425] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,431] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:45,438] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,357] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,359] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,364] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,366] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,370] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,372] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,372] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,373] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,373] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,379] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,381] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,386] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,387] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,394] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:46,399] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,364] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,366] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,371] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,374] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,378] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,380] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,382] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,383] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,387] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,391] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,394] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,400] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,402] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,416] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:47,424] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,372] ThomasTruong/INFO/locust.runners: All users spawned: {"TransactionScoringUser": 20} (20 total users)
+[2026-10-17 22:23:48,376] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,378] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,384] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,385] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,390] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,391] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,392] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,393] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,396] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,400] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,403] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,407] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,410] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,413] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:23:48,423] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:24:14,472] ThomasTruong/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-17 22:24:14,792] ThomasTruong/INFO/locust.main: Shutting down (exit code 0)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /transactions                                                                   1785     0(0.00%) |     11       5     235      9 |   60.80        0.00
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                      1785     0(0.00%) |     11       5     235      9 |   60.80        0.00
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /transactions                                                                           9     10     11     12     23     30     35     38     86    240    240   1785
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                              9     10     11     12     23     30     35     38     86    240    240   1785
+

@@ -1,0 +1,5 @@
+label=u50_60s users=50 spawn_rate=5 duration=60s locust_rc=0
+locust_start=1792250239.122860200 locust_end=1792250300.364839800
+drain_seconds_after_locust_end=40
+service_cpu_seconds_before: accounts-service=8.59 ledger-service=10.27 settlement-engine=9.14 
+service_cpu_seconds_after:  accounts-service=11.64 ledger-service=18.78 settlement-engine=11.66 
