@@ -182,6 +182,12 @@ simulated user creates its own client + 2 accounts via
 `accounts-service` on start, then repeatedly posts a 2-entry transaction
 to `POST /transactions` on ledger-service.
 
+The locustfile exits non-zero when the failure ratio exceeds 1% or p95
+exceeds 100 ms (override with `PERF_MAX_FAIL_RATIO` / `PERF_MAX_P95_MS`).
+Those limits are calibrated for a 20-user run; measured numbers at 20, 50
+and 100 users, and how the limits were chosen, are in
+`docs/perf-baseline.md`.
+
 ## Troubleshooting
 
 - **Tests skip with "not reachable at .../health"** — that service isn't
