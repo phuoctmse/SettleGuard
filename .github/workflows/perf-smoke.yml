@@ -5,6 +5,7 @@ name: Perf smoke
 # ratio <= 1%, p95 <= 100 ms). See docs/perf-baseline.md for where those
 # limits come from. Not run on pull requests.
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       users:
