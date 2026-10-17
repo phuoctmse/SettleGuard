@@ -1,5 +1,7 @@
 # SettleGuard
 
+[![CI](https://github.com/phuoctmse/SettleGuard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/phuoctmse/SettleGuard/actions/workflows/ci.yml)
+
 SettleGuard is a B2B platform that tracks and settles financial obligations
 between parties on top of external payment rails (it never moves real money
 itself), while guarding the settlement process with rule-based and ML-based
