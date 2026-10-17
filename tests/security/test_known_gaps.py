@@ -36,8 +36,8 @@ def _tenant(gateway_base_url, api_key_factory):
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason="SG-PT-01: backend ports 8080-8083 accept unauthenticated requests")
 def test_backend_ports_require_authentication(accounts_base_url):
     resp = httpx.post(f"{accounts_base_url}/clients", json={"name": f"Direct {uuid.uuid4()}"}, timeout=5.0)
-    if resp.status_code >= 500:
-        pytest.fail(f"precondition: direct request got {resp.status_code}, not a real answer")
+    if resp.status_code not in (201, 401, 403):
+        pytest.fail(f"unexpected {resp.status_code}: {resp.text[:200]}")
     assert resp.status_code in (401, 403)
 
 
@@ -51,6 +51,8 @@ def test_client_cannot_write_to_another_clients_accounts(gateway_base_url, api_k
         {"account_id": b1, "direction": "debit", "amount": 100, "reason": "bola"},
         {"account_id": b2, "direction": "credit", "amount": 100, "reason": "bola"},
     ]})
+    if resp.status_code not in (201, 403, 404):
+        pytest.fail(f"unexpected {resp.status_code}: {resp.text[:200]}")
     assert resp.status_code in (403, 404)
 
 
