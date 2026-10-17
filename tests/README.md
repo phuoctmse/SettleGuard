@@ -18,9 +18,11 @@ themselves; this suite tests the system from the outside).
   (`test_end_to_end_flow.py`) that posts a transaction through
   ledger-service and follows it through settlement-engine and
   notification-service.
-- `tests/security` — fraud-bypass tests only (`test_fraud_bypass.py`):
-  velocity limit, mismatch threshold, blocklist, double-approve, and
-  held-transaction-excluded-from-settlement.
+- `tests/security` — fraud-bypass tests (`test_fraud_bypass.py`: velocity
+  limit, mismatch threshold, blocklist, double-approve, and
+  held-transaction-excluded-from-settlement) plus a pentest suite against
+  the gateway and the four services (pytest + OWASP ZAP) — see
+  `tests/security/README.md` and `docs/security/PENTEST_REPORT.md`.
 - `tests/perf` — a Locust file load-testing the real-time transaction
   scoring path via `POST /transactions` on ledger-service.
 
@@ -34,8 +36,6 @@ themselves; this suite tests the system from the outside).
   Still blocked on the other: there is no CI pipeline
   (no `.github/workflows` yet) whose failures there would be anything to
   triage. Large enough to be its own plan.
-- **Auth boundary checks** (`tests/security`) — no service has auth yet;
-  waiting on a project-wide auth decision.
 - **Mobile Appium E2E** — waiting on `mobile-app` screens getting
   `testID`/`accessibilityLabel` attributes, which is `mobile-app`'s own
   work, not `tests/`.
@@ -54,6 +54,7 @@ request to point Locust at).
 
 - Docker (for Postgres + NATS)
 - Go (to run `ledger-service`, `accounts-service`, `settlement-engine`)
+- Docker also runs OWASP ZAP for the pentest scan (`tests/security/zap/run_zap.sh`)
 - Python 3.11+ with a virtualenv of your choice
 
 Install this suite's own dependencies:
@@ -62,7 +63,8 @@ Install this suite's own dependencies:
 pip install -r tests/requirements.txt
 ```
 
-This pulls in `pytest`, `httpx`, `locust`, and `psycopg2-binary`.
+This pulls in `pytest`, `httpx`, `locust`, `psycopg2-binary`, and `PyYAML`
+(the latter reads the ZAP accepted-risks file).
 `psycopg2-binary` exists solely for `tests/security`'s `seed_blocklist`
 fixture (`tests/security/conftest.py`), which inserts rows directly into
 settlement-engine's `blocklist` table — the one deliberate exception to
