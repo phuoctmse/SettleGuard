@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same version as go.mod's golang-migrate dependency; notification-service
+  # shells out to this CLI for its migrations (startup and tests).
+  MIGRATE_VERSION: v4.19.1
+  # .golangci.yml is v1 config. Installed with `go install` so the binary is
+  # built by the same Go toolchain as the modules (the prebuilt v1.64.8
+  # release is built with an older Go and refuses go 1.26 modules).
+  GOLANGCI_LINT_VERSION: v1.64.8
+
+jobs:
+  go-test:
+    name: go-test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ledger-service, accounts-service, settlement-engine, gateway]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/${{ matrix.service }}/go.mod
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+          golangci-lint run --config "${GITHUB_WORKSPACE}/.golangci.yml" ./...
+      - name: go test
+        # -p 1: packages each start their own Postgres/NATS testcontainers;
+        # running them in parallel contends for Docker.
+        run: go test -count=1 -p 1 ./...
+
+  python-test:
+    name: python-test (notification-service)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notification-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/notification-service/requirements.txt
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/ledger-service/go.mod
+          cache-dependency-path: services/*/go.sum
+      - name: Install migrate CLI
+        run: go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@${MIGRATE_VERSION}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: pytest
+        run: python -m pytest -v
+
+  mobile-test:
+    name: mobile-test (mobile-app)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+      - name: Jest
+        run: npm test -- --ci
+
+  e2e-api:
+    name: e2e-api (tests/api + tests/security)
+    runs-on: ubuntu-latest
+    env:
+      NATS_URL: nats://localhost:4222
+      LOG_DIR: ${{ github.workspace }}/e2e-logs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/ledger-service/go.mod
+          cache-dependency-path: services/*/go.sum
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            tests/requirements.txt
+            services/notification-service/requirements.txt
+      - name: Install migrate CLI and Python dependencies
+        run: |
+          go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@${MIGRATE_VERSION}
+          pip install -r tests/requirements.txt -r services/notification-service/requirements.txt
+
+      - name: Start infra (Postgres x5 + NATS)
+        run: |
+          # docker-compose.yml reads each service's .env as the Postgres
+          # env_file; those are gitignored, .env.example holds the values.
+          for s in ledger-service accounts-service settlement-engine notification-service gateway; do
+            cp "services/$s/.env.example" "services/$s/.env"
+          done
+          docker compose -f infra/docker/docker-compose.yml up -d
+          # TCP check on purpose: during first-boot initdb the image runs a
+          # temporary server on the unix socket only, which a socket check
+          # would report as ready.
+          for pair in ledger-dev:ledger accounts-dev:accounts settlement-dev:settlement notification-dev:notification gateway-dev:gateway; do
+            container="settleguard-${pair%%:*}"; user="${pair##*:}"
+            for i in $(seq 1 60); do
+              docker exec "$container" pg_isready -h 127.0.0.1 -U "$user" >/dev/null 2>&1 && break
+              [ "$i" = 60 ] && { echo "$container never became ready"; exit 1; }
+              sleep 1
+            done
+          done
+          # NATS greets every client connection with an INFO line. The
+          # compose file starts nats without -m 8222, so /healthz (and the
+          # compose healthcheck built on it) never answers; wait on the
+          # client port instead.
+          for i in $(seq 1 60); do
+            timeout 2 bash -c 'exec 3<>/dev/tcp/localhost/4222 && head -c 4 <&3' 2>/dev/null | grep -q INFO && break
+            [ "$i" = 60 ] && { echo "NATS never accepted connections"; exit 1; }
+            sleep 1
+          done
+
+      - name: Build Go services
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          for s in ledger-service accounts-service settlement-engine gateway; do
+            (cd "services/$s" && go build -o "$RUNNER_TEMP/bin/$s" ./cmd/server)
+          done
+
+      - name: Start services
+        run: |
+          mkdir -p "$LOG_DIR"
+          wait_healthy() {
+            for i in $(seq 1 60); do
+              curl -fsS "$1/health" >/dev/null 2>&1 && { echo "$1 healthy"; return 0; }
+              sleep 1
+            done
+            echo "$1 not healthy after 60s"; return 1
+          }
+
+          DATABASE_URL="postgres://ledger:ledger@localhost:5433/ledger?sslmode=disable" \
+            nohup "$RUNNER_TEMP/bin/ledger-service" > "$LOG_DIR/ledger-service.log" 2>&1 &
+          wait_healthy http://localhost:8080
+
+          DATABASE_URL="postgres://accounts:accounts@localhost:5434/accounts?sslmode=disable" \
+            nohup "$RUNNER_TEMP/bin/accounts-service" > "$LOG_DIR/accounts-service.log" 2>&1 &
+          wait_healthy http://localhost:8081
+
+          # 5s batch interval (default 60s): tests/api's end-to-end flow and
+          # several tests/security tests wait for a batch cycle.
+          DATABASE_URL="postgres://settlement:settlement@localhost:5435/settlement?sslmode=disable" \
+          SETTLEMENT_BATCH_INTERVAL_SECONDS=5 \
+            nohup "$RUNNER_TEMP/bin/settlement-engine" > "$LOG_DIR/settlement-engine.log" 2>&1 &
+          wait_healthy http://localhost:8082
+
+          (cd services/notification-service && \
+            DATABASE_URL="postgres://notification:notification@localhost:5436/notification?sslmode=disable" \
+            PYTHONUNBUFFERED=1 nohup python main.py > "$LOG_DIR/notification-service.log" 2>&1 &)
+          wait_healthy http://localhost:8083
+
+          DATABASE_URL="postgres://gateway:gateway@localhost:5437/gateway?sslmode=disable" \
+            nohup "$RUNNER_TEMP/bin/gateway" > "$LOG_DIR/gateway.log" 2>&1 &
+          wait_healthy http://localhost:8000
+
+      - name: pytest tests/api tests/security
+        working-directory: tests
+        run: python -m pytest api security -v
+
+      - name: Collect infra logs
+        if: failure()
+        run: |
+          mkdir -p "$LOG_DIR"
+          docker compose -f infra/docker/docker-compose.yml logs --no-color > "$LOG_DIR/docker-compose.log" 2>&1 || true
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-service-logs
+          path: e2e-logs/
+          if-no-files-found: warn
