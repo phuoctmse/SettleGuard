@@ -36,6 +36,7 @@ def _adminctl(*args: str) -> str:
         [*cmd, *args],
         cwd=GATEWAY_DIR,
         env={**os.environ, "DATABASE_URL": GATEWAY_DATABASE_URL},
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         timeout=120,
