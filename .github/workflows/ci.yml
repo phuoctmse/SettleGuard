@@ -30,8 +30,8 @@ jobs:
       run:
         working-directory: services/${{ matrix.service }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: services/${{ matrix.service }}/go.mod
           cache-dependency-path: services/${{ matrix.service }}/go.sum
@@ -53,13 +53,13 @@ jobs:
       run:
         working-directory: services/notification-service
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: services/notification-service/requirements.txt
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: services/ledger-service/go.mod
           cache-dependency-path: services/*/go.sum
@@ -77,8 +77,8 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: npm
@@ -98,12 +98,12 @@ jobs:
       NATS_URL: nats://localhost:4222
       LOG_DIR: ${{ github.workspace }}/e2e-logs
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: services/ledger-service/go.mod
           cache-dependency-path: services/*/go.sum
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -134,9 +134,13 @@ jobs:
               sleep 1
             done
           done
+          # NATS greets every client connection with an INFO line. The
+          # compose file starts nats without -m 8222, so /healthz (and the
+          # compose healthcheck built on it) never answers; wait on the
+          # client port instead.
           for i in $(seq 1 60); do
-            curl -fsS http://localhost:8222/healthz >/dev/null && break
-            [ "$i" = 60 ] && { echo "NATS never became healthy"; exit 1; }
+            timeout 2 bash -c 'exec 3<>/dev/tcp/localhost/4222 && head -c 4 <&3' 2>/dev/null | grep -q INFO && break
+            [ "$i" = 60 ] && { echo "NATS never accepted connections"; exit 1; }
             sleep 1
           done
 
@@ -193,7 +197,7 @@ jobs:
           docker compose -f infra/docker/docker-compose.yml logs --no-color > "$LOG_DIR/docker-compose.log" 2>&1 || true
       - name: Upload service logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-service-logs
           path: e2e-logs/
