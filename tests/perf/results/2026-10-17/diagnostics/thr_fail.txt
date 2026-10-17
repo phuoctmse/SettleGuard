@@ -1,0 +1,35 @@
+[2026-10-17 22:38:10,386] ThomasTruong/INFO/locust.main: Starting Locust 2.46.4
+[2026-10-17 22:38:10,387] ThomasTruong/INFO/locust.main: Run time limit set to 10 seconds
+[2026-10-17 22:38:10,388] ThomasTruong/INFO/locust.runners: Ramping to 5 users at a rate of 5.00 per second
+[2026-10-17 22:38:10,389] ThomasTruong/INFO/locust.runners: All users spawned: {"TransactionScoringUser": 5} (5 total users)
+[2026-10-17 22:38:10,409] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,413] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,414] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,418] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,425] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,427] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,430] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,433] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,441] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,447] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,450] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,455] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,477] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/clients "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,486] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:10,493] ThomasTruong/INFO/httpx: HTTP Request: POST http://localhost:8081/accounts "HTTP/1.1 201 Created"
+[2026-10-17 22:38:18,982] ThomasTruong/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-17 22:38:19,150] ThomasTruong/ERROR/root: threshold: p95 15 ms > 1 ms
+[2026-10-17 22:38:19,150] ThomasTruong/INFO/locust.main: Shutting down (exit code 1)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /transactions                                                                    133     0(0.00%) |      9       5      28      8 |   15.55        0.00
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                       133     0(0.00%) |      9       5      28      8 |   15.55        0.00
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /transactions                                                                           8      9     10     10     11     15     25     26     29     29     29    133
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                              8      9     10     10     11     15     25     26     29     29     29    133
+
