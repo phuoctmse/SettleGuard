@@ -42,3 +42,14 @@ def test_empty_accepted_file_is_allowed(tmp_path):
     path = tmp_path / "accepted.yaml"
     path.write_text("accepted: []\n")
     assert load_accepted(path) == []
+
+
+def test_scan_with_no_results_fails_closed(tmp_path, capsys):
+    from check_report import main
+
+    accepted = tmp_path / "accepted.yaml"
+    accepted.write_text("accepted: []\n", encoding="utf-8")
+    report = tmp_path / "empty.json"
+    report.write_text("{}", encoding="utf-8")
+    assert main(["check_report.py", str(accepted), str(report)]) == 1
+    assert "No ZAP results found" in capsys.readouterr().out

@@ -16,7 +16,7 @@ REQUIRED = ("plugin_id", "finding_id", "reason")
 
 
 def load_accepted(path) -> list[dict]:
-    entries = (yaml.safe_load(Path(path).read_text()) or {}).get("accepted") or []
+    entries = (yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}).get("accepted") or []
     for entry in entries:
         for field in REQUIRED:
             if not entry.get(field):
@@ -46,7 +46,10 @@ def _table(title, alerts):
 
 def main(argv):
     accepted = load_accepted(argv[1])
-    reports = [json.loads(Path(p).read_text()) for p in argv[2:]]
+    reports = [json.loads(Path(p).read_text(encoding="utf-8")) for p in argv[2:]]
+    if not any(report.get("site") for report in reports):
+        print("**No ZAP results found — failing closed.**")
+        return 1
     high, medium = evaluate(reports, accepted)
     print("## ZAP API scan\n")
     print(_table("High (unaccepted) — fails the build", high))
