@@ -39,7 +39,7 @@ for spec in ledger-service accounts-service settlement-engine notification-servi
   set +e
   MSYS_NO_PATHCONV=1 docker run --rm --network "$ZAP_DOCKER_NETWORK" -v "$OUT_MOUNT:/zap/wrk:rw" \
     -e ZAP_AUTH_HEADER=Authorization -e ZAP_AUTH_HEADER_VALUE="Bearer $raw_key" \
-    ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+    ghcr.io/zaproxy/zaproxy:2.17.0 zap-api-scan.py \
       -t "/zap/wrk/$spec.yaml" -f openapi -I \
       -r "$spec.html" -J "$spec.json" \
       -z "-config scanner.maxScanDurationInMins=$ZAP_MAX_SCAN_MINUTES -config scanner.maxRuleDurationInMins=2" 2>&1 | tee "$OUT/$spec.log"
