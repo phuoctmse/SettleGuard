@@ -260,6 +260,60 @@ func (r *TransactionRepository) ListByStatus(ctx context.Context, status string)
 	return out, rows.Err()
 }
 
+// ListByStatusPage returns up to limit transactions at status, most recently
+// scored first with ties broken by id, starting strictly after `after` (nil
+// starts from the top). next is the cursor of the page's last row, or nil
+// when nothing follows. It fetches limit+1 rows to know that without a COUNT.
+func (r *TransactionRepository) ListByStatusPage(ctx context.Context, status string, limit int, after *Cursor) ([]Transaction, *Cursor, error) {
+	const query = `SELECT id, amount, score, decision, status, triggered_rules, scored_at FROM transactions`
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if after == nil {
+		rows, err = r.db.QueryContext(ctx, query+`
+			WHERE status = $1 ORDER BY scored_at DESC, id DESC LIMIT $2`, status, limit+1)
+	} else {
+		rows, err = r.db.QueryContext(ctx, query+`
+			WHERE status = $1 AND (scored_at, id) < ($2, $3)
+			ORDER BY scored_at DESC, id DESC LIMIT $4`, status, after.At, after.ID, limit+1)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("list transactions by status: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Transaction
+	for rows.Next() {
+		t, err := scanTransaction(rows)
+		if err != nil {
+			return nil, nil, fmt.Errorf("scan transaction: %w", err)
+		}
+		out = append(out, *t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	// Close before the per-transaction queries so each one can reuse this
+	// connection instead of opening another while rows is held.
+	rows.Close()
+
+	var next *Cursor
+	if len(out) > limit {
+		out = out[:limit]
+		last := out[limit-1]
+		next = &Cursor{At: last.ScoredAt, ID: last.ID}
+	}
+	for i := range out {
+		accountIDs, err := r.accountIDsFor(ctx, out[i].ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		out[i].AccountIDs = accountIDs
+	}
+	return out, next, nil
+}
+
 // Approve moves a held transaction back into the normal settlement flow
 // (behaves identically to a transaction that passed risk-scoring outright).
 // See SETTLEMENT-05 in docs/BUSINESS_RULES.md.

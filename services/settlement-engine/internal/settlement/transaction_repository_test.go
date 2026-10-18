@@ -2,8 +2,11 @@ package settlement_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -247,4 +250,83 @@ func TestApprove_NotFound_ReturnsError(t *testing.T) {
 	_, err := repo.Approve(context.Background(), uuid.New())
 
 	assert.ErrorIs(t, err, settlement.ErrTransactionNotFound)
+}
+
+func insertHeldAt(t *testing.T, db *sql.DB, id uuid.UUID, at time.Time) {
+	t.Helper()
+	_, err := db.Exec(`
+		INSERT INTO transactions (id, amount, score, decision, status, triggered_rules, scored_at)
+		VALUES ($1, 1000, 40, 'hold', 'held', '{velocity_limit}', $2)
+	`, id, at)
+	require.NoError(t, err)
+}
+
+func collectHeld(t *testing.T, repo *settlement.TransactionRepository, limit int) ([]uuid.UUID, int) {
+	t.Helper()
+	var ids []uuid.UUID
+	var after *settlement.Cursor
+	pages := 0
+	for {
+		page, next, err := repo.ListByStatusPage(context.Background(), settlement.StatusHeld, limit, after)
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(page), limit)
+		pages++
+		for _, tx := range page {
+			ids = append(ids, tx.ID)
+		}
+		if next == nil {
+			return ids, pages
+		}
+		after = next
+		require.Less(t, pages, 100, "pagination did not terminate")
+	}
+}
+
+func TestListByStatusPage_WalksEveryRowOnceNewestFirst(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+	base := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+
+	var want []uuid.UUID // newest first
+	for i := 4; i >= 0; i-- {
+		id := uuid.New()
+		insertHeldAt(t, db, id, base.Add(time.Duration(i)*time.Second))
+		want = append(want, id)
+	}
+	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{uuid.New()}, 1_000, passScore(uuid.New())))
+
+	got, pages := collectHeld(t, repo, 2)
+
+	assert.Equal(t, want, got)
+	assert.Equal(t, 3, pages)
+}
+
+func TestListByStatusPage_BreaksTimestampTiesByID(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+	at := time.Date(2026, 10, 18, 12, 0, 0, 123456000, time.UTC)
+
+	ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	for _, id := range ids {
+		insertHeldAt(t, db, id, at)
+	}
+	// Postgres orders uuid bytewise, which matches the canonical string order.
+	sort.Slice(ids, func(i, j int) bool { return ids[i].String() > ids[j].String() })
+
+	got, pages := collectHeld(t, repo, 1)
+
+	assert.Equal(t, ids, got)
+	assert.Equal(t, 3, pages)
+}
+
+func TestListByStatusPage_SinglePageHasNoCursor(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewTransactionRepository(db)
+	insertHeldAt(t, db, uuid.New(), time.Now())
+
+	page, next, err := repo.ListByStatusPage(context.Background(), settlement.StatusHeld, 50, nil)
+
+	require.NoError(t, err)
+	assert.Len(t, page, 1)
+	assert.Nil(t, next)
 }

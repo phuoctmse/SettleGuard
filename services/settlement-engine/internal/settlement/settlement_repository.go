@@ -225,6 +225,57 @@ func (r *SettlementRepository) List(ctx context.Context) ([]Settlement, error) {
 	return out, nil
 }
 
+// ListPage returns up to limit settlements, most recently created first with
+// ties broken by id, starting strictly after `after` (nil starts from the
+// top). next is the cursor of the page's last row, or nil when nothing follows.
+func (r *SettlementRepository) ListPage(ctx context.Context, limit int, after *Cursor) ([]Settlement, *Cursor, error) {
+	const query = `SELECT id, transaction_count, total_amount, created_at FROM settlements`
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if after == nil {
+		rows, err = r.db.QueryContext(ctx, query+`
+			ORDER BY created_at DESC, id DESC LIMIT $1`, limit+1)
+	} else {
+		rows, err = r.db.QueryContext(ctx, query+`
+			WHERE (created_at, id) < ($1, $2)
+			ORDER BY created_at DESC, id DESC LIMIT $3`, after.At, after.ID, limit+1)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("list settlements: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Settlement
+	for rows.Next() {
+		var s Settlement
+		if err := rows.Scan(&s.ID, &s.TransactionCount, &s.TotalAmount, &s.CreatedAt); err != nil {
+			return nil, nil, fmt.Errorf("scan settlement: %w", err)
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	rows.Close()
+
+	var next *Cursor
+	if len(out) > limit {
+		out = out[:limit]
+		last := out[limit-1]
+		next = &Cursor{At: last.CreatedAt, ID: last.ID}
+	}
+	for i := range out {
+		ids, err := r.transactionIDsFor(ctx, out[i].ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		out[i].TransactionIDs = ids
+	}
+	return out, next, nil
+}
+
 // transactionIDsFor's per-settlement query (rather than a join) is
 // acceptable at MVP scale: settlement runs are infrequent
 // (SETTLEMENT_BATCH_INTERVAL_SECONDS, default 60s) and this has one
