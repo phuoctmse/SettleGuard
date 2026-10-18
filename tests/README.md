@@ -39,8 +39,6 @@ themselves; this suite tests the system from the outside).
 - **Mobile Appium E2E** — waiting on `mobile-app` screens getting
   `testID`/`accessibilityLabel` attributes, which is `mobile-app`'s own
   work, not `tests/`.
-- **CI wiring** for `tests/api` — not wired yet. `tests/security` runs
-  in the CI `security` job (pentests and ZAP).
 
 See `docs/superpowers/specs/2026-08-24-testing-suite-design.md` §8 ("Để
 lại cho việc khác") for the full rationale behind each of these.
@@ -150,6 +148,10 @@ corresponding session-scoped fixture in `tests/api/conftest.py` skips
 pointing back here.
 
 ## Running the suites
+
+In CI (`.github/workflows/ci.yml`) `tests/api` runs in the `e2e-api` job
+and `tests/security` in the `security` job; both start the stack with
+`.github/actions/start-stack`.
 
 From the repo root (or from `tests/` — `tests/pyproject.toml` sets
 `testpaths = ["api", "security"]` and `pythonpath = ["api"]` so
