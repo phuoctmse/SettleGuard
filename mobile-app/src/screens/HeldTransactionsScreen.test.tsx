@@ -179,4 +179,10 @@ it('exposes per-row testIDs and approves/rejects the right row by id', async () 
 
   await fireEvent.press(getByTestId('reject-txn-1'));
   expect((settlementApi.rejectTransaction as jest.Mock).mock.calls[0][0]).toBe('txn-1');
+
+  // The list mock never changes, so wait on the refetches themselves: one
+  // initial load plus one invalidate-triggered refetch per mutation.
+  await waitFor(() => {
+    expect(settlementApi.listHeldTransactions).toHaveBeenCalledTimes(3);
+  });
 });

@@ -63,9 +63,12 @@ menu. Press:
 ## Test IDs
 
 Interactive and list elements carry stable `testID`s so E2E tests can find
-them (on web, `react-native-web` renders them as `data-testid`; on native,
-Appium reads the same IDs). Treat them as a public contract: rename one only
-together with the tests that use it.
+them. On web, `react-native-web` renders them as `data-testid`. On native,
+Appium reads the same IDs, but by a different locator per platform: iOS
+exposes a `testID` as the accessibility identifier (Appium's
+`accessibility id` strategy), Android as the view's `resource-id` (Appium's
+`id` strategy). Treat them as a public contract: rename one only together
+with the tests that use it.
 
 | testID                                                      | Screen            |
 | ----------------------------------------------------------- | ----------------- |
