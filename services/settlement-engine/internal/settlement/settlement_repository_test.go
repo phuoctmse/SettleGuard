@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -127,7 +129,7 @@ func TestListSettlements_MostRecentFirst(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, second)
 
-	list, err := repo.List(context.Background())
+	list, _, err := repo.ListPage(context.Background(), 50, nil)
 
 	require.NoError(t, err)
 	require.Len(t, list, 2)
@@ -146,7 +148,7 @@ func TestListSettlements_IncludesTransactionIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, batch)
 
-	list, err := repo.List(context.Background())
+	list, _, err := repo.ListPage(context.Background(), 50, nil)
 
 	require.NoError(t, err)
 	require.Len(t, list, 1)
@@ -167,4 +169,60 @@ func TestRunBatch_RejectsOverflowingTotal(t *testing.T) {
 
 	_, err := repo.RunBatch(context.Background())
 	require.ErrorIs(t, err, settlement.ErrBatchTotalOverflow)
+}
+
+func insertSettlementAt(t *testing.T, db *sql.DB, id uuid.UUID, at time.Time) {
+	t.Helper()
+	_, err := db.Exec(`
+		INSERT INTO settlements (id, transaction_count, total_amount, created_at) VALUES ($1, 1, 100, $2)
+	`, id, at)
+	require.NoError(t, err)
+}
+
+func TestListSettlementsPage_WalksEveryRowOnceNewestFirstWithTies(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+	base := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+
+	newest := uuid.New()
+	insertSettlementAt(t, db, newest, base.Add(time.Minute))
+	tied := []uuid.UUID{uuid.New(), uuid.New()}
+	for _, id := range tied {
+		insertSettlementAt(t, db, id, base)
+	}
+	sort.Slice(tied, func(i, j int) bool { return tied[i].String() > tied[j].String() })
+	want := append([]uuid.UUID{newest}, tied...)
+
+	var got []uuid.UUID
+	var after *settlement.Cursor
+	for pages := 0; ; pages++ {
+		require.Less(t, pages, 10, "pagination did not terminate")
+		page, next, err := repo.ListPage(context.Background(), 1, after)
+		require.NoError(t, err)
+		require.Len(t, page, 1)
+		got = append(got, page[0].ID)
+		if next == nil {
+			break
+		}
+		after = next
+	}
+
+	assert.Equal(t, want, got)
+}
+
+func TestListSettlementsPage_IncludesTransactionIDs(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+	tx1, tx2 := uuid.New(), uuid.New()
+	insertTransactionWithStatus(t, db, tx1, 1_000, settlement.StatusPendingSettlement)
+	insertTransactionWithStatus(t, db, tx2, 2_000, settlement.StatusPendingSettlement)
+	_, err := repo.RunBatch(context.Background())
+	require.NoError(t, err)
+
+	page, next, err := repo.ListPage(context.Background(), 50, nil)
+
+	require.NoError(t, err)
+	require.Len(t, page, 1)
+	assert.Nil(t, next)
+	assert.ElementsMatch(t, []uuid.UUID{tx1, tx2}, page[0].TransactionIDs)
 }

@@ -66,18 +66,25 @@ func toTransactionResponse(t settlement.Transaction) transactionResponse {
 	}
 }
 
-// ListTransactions requires a status filter -- the one caller (mobile-app's
-// Held Transactions screen) always wants status=held; an unfiltered "list
-// everything" endpoint has no use case yet and would need pagination
-// nothing currently needs.
+// Paginated: see pagination.go for limit/cursor rules.
 func (h *Handlers) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	if status == "" {
 		writeError(w, http.StatusBadRequest, "status query param is required")
 		return
 	}
+	limit, err := parseLimit(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	after, err := parseCursor(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	txs, err := h.transactions.ListByStatus(r.Context(), status)
+	txs, next, err := h.transactions.ListByStatusPage(r.Context(), status, limit, after)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -87,7 +94,7 @@ func (h *Handlers) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	for i, t := range txs {
 		resp[i] = toTransactionResponse(t)
 	}
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, pageResponse{Items: resp, NextCursor: encodeCursor(next)})
 }
 
 func (h *Handlers) GetTransaction(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +179,18 @@ func toSettlementResponse(s settlement.Settlement) settlementResponse {
 }
 
 func (h *Handlers) ListSettlements(w http.ResponseWriter, r *http.Request) {
-	list, err := h.settlements.List(r.Context())
+	limit, err := parseLimit(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	after, err := parseCursor(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	list, next, err := h.settlements.ListPage(r.Context(), limit, after)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -182,7 +200,7 @@ func (h *Handlers) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	for i, s := range list {
 		resp[i] = toSettlementResponse(s)
 	}
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, pageResponse{Items: resp, NextCursor: encodeCursor(next)})
 }
 
 func (h *Handlers) GetSettlement(w http.ResponseWriter, r *http.Request) {
