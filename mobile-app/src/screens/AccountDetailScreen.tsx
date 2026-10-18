@@ -43,7 +43,7 @@ export function AccountDetailScreen({ route }: Props) {
     <ScreenContainer>
       {account.data && (
         <View style={styles.header}>
-          <BalanceDisplay amount={account.data.balance} />
+          <BalanceDisplay amount={account.data.balance} testID="account-balance" />
           <Text style={[typography.caption, { color: colors.textSecondary }]}>
             Status: {account.data.status}
           </Text>

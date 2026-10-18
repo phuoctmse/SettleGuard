@@ -79,3 +79,24 @@ it('shows balance but a failure message for entries when the ledger query errors
   expect(await findByText('Balance: 500')).toBeTruthy();
   expect(await findByText('Failed to load transaction history.')).toBeTruthy();
 });
+
+it('exposes the balance by testID', async () => {
+  (accountsApi.getAccount as jest.Mock).mockResolvedValue({
+    id: 'acc-1',
+    client_id: 'client-123',
+    external_ref: 'ext-1',
+    status: 'active',
+    balance: 1500,
+    created_at: '',
+  });
+  (ledgerApi.listEntriesForAccount as jest.Mock).mockResolvedValue([]);
+
+  const { findByTestId } = await renderWithQuery(
+    <AccountDetailScreen
+      navigation={{} as any}
+      route={{ params: { accountId: 'acc-1' } } as any}
+    />,
+  );
+
+  expect(await findByTestId('account-balance')).toHaveTextContent('Balance: 1500');
+});

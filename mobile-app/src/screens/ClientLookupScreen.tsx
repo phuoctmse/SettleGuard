@@ -22,9 +22,11 @@ export function ClientLookupScreen({ navigation }: Props) {
         value={clientId}
         onChangeText={setClientId}
         autoCapitalize="none"
+        testID="client-id-input"
       />
       <Button
         title="View Accounts"
+        testID="view-accounts-button"
         disabled={clientId.trim().length === 0}
         onPress={() => navigation.navigate('AccountList', { clientId: clientId.trim() })}
       />
