@@ -22,3 +22,21 @@ it('calls onPress when tapped, if provided', async () => {
   await fireEvent.press(getByText('Tap me'));
   expect(onPress).toHaveBeenCalledTimes(1);
 });
+
+it('forwards testID to the pressable card', async () => {
+  const { getByTestId } = await render(
+    <Card testID="card-x" onPress={() => {}}>
+      <Text>Body</Text>
+    </Card>,
+  );
+  expect(getByTestId('card-x')).toBeTruthy();
+});
+
+it('forwards testID to the static card', async () => {
+  const { getByTestId } = await render(
+    <Card testID="card-y">
+      <Text>Body</Text>
+    </Card>,
+  );
+  expect(getByTestId('card-y')).toBeTruthy();
+});

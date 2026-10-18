@@ -11,3 +11,8 @@ it('renders a negative balance', async () => {
   const { findByText } = await render(<BalanceDisplay amount={-50} />);
   expect(await findByText('Balance: -50')).toBeTruthy();
 });
+
+it('forwards testID to the balance text', async () => {
+  const { getByTestId } = await render(<BalanceDisplay amount={250} testID="account-balance" />);
+  expect(getByTestId('account-balance')).toHaveTextContent('Balance: 250');
+});

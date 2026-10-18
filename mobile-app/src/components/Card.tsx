@@ -7,12 +7,14 @@ interface Props {
   children: ReactNode;
   onPress?: () => void;
   style?: ViewStyle;
+  testID?: string;
 }
 
-export function Card({ children, onPress, style }: Props) {
+export function Card({ children, onPress, style, testID }: Props) {
   if (onPress) {
     return (
       <Pressable
+        testID={testID}
         onPress={onPress}
         accessibilityRole="button"
         style={({ pressed }) => [styles.card, style, pressed && styles.pressed]}
@@ -21,7 +23,11 @@ export function Card({ children, onPress, style }: Props) {
       </Pressable>
     );
   }
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <View testID={testID} style={[styles.card, style]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
