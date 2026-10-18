@@ -52,10 +52,30 @@ menu. Press:
 - `a` to open in Android emulator (note: from an Android emulator, use
   `10.0.2.2` instead of `localhost` in the four API URLs below — the
   emulator's alias for the host machine)
-- `w` to open in web (browser) — note: the backend services need CORS
-  support for browser-based requests to succeed; this hasn't been added
-  yet, so `w` will fail with CORS errors as of this MVP
+- `w` to open in web (browser) — the four services have no CORS, so a
+  browser cannot call them directly. Only the gateway (`services/gateway`)
+  sends CORS headers, and it requires an API key the app does not send, so
+  the web build is currently driven only by the Playwright suite, which
+  points the API URLs at the gateway and injects a key (see
+  `docs/superpowers/specs/2026-10-18-pentest-and-playwright-design.md` §7.1)
 - `s` to send the link to your phone (use Expo Go app)
+
+## Test IDs
+
+Interactive and list elements carry stable `testID`s so E2E tests can find
+them (on web, `react-native-web` renders them as `data-testid`; on native,
+Appium reads the same IDs). Treat them as a public contract: rename one only
+together with the tests that use it.
+
+| testID                                                      | Screen            |
+| ----------------------------------------------------------- | ----------------- |
+| `client-id-input`, `view-accounts-button`                   | Client lookup     |
+| `account-card-<id>`                                         | Account list      |
+| `account-balance`                                           | Account detail    |
+| `held-tx-<id>`, `approve-<id>`, `reject-<id>`               | Held transactions |
+| `settlement-card-<id>`                                      | Settlements       |
+| `alert-card-<id>`                                           | Alerts            |
+| `tab-accounts`, `tab-held`, `tab-settlements`, `tab-alerts` | Bottom tabs       |
 
 ## Run tests
 
