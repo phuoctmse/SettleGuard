@@ -110,7 +110,7 @@ go test ./internal/risk/... -run TestScorer_Score_HoldOnVelocityLimit -v
   `{"items": [Transaction...], "next_cursor": "<c>" | null}`, filtered by
   status (`pending_settlement` | `held` | `settled` | `rejected`), most
   recently scored first. `400` if `status` is missing, `limit` is not an
-  integer ≥ 1 (`invalid limit`), or `cursor` is not one this API issued
+  integer ≥ 1 (`invalid limit`), or `cursor` is malformed
   (`invalid cursor`).
 - `GET /transactions/{id}` — `200` Transaction or `404`.
 - `POST /transactions/{id}/approve` — moves a `held` transaction to
