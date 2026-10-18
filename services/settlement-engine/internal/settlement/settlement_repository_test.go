@@ -129,7 +129,7 @@ func TestListSettlements_MostRecentFirst(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, second)
 
-	list, err := repo.List(context.Background())
+	list, _, err := repo.ListPage(context.Background(), 50, nil)
 
 	require.NoError(t, err)
 	require.Len(t, list, 2)
@@ -148,7 +148,7 @@ func TestListSettlements_IncludesTransactionIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, batch)
 
-	list, err := repo.List(context.Background())
+	list, _, err := repo.ListPage(context.Background(), 50, nil)
 
 	require.NoError(t, err)
 	require.Len(t, list, 1)

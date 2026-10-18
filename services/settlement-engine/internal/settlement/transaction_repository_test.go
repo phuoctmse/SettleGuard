@@ -165,7 +165,7 @@ func TestListByStatus_ReturnsOnlyMatchingStatus(t *testing.T) {
 	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, holdScore(heldID)))
 	require.NoError(t, repo.RecordScore(context.Background(), []uuid.UUID{acc}, 1_000, passScore(passID)))
 
-	held, err := repo.ListByStatus(context.Background(), settlement.StatusHeld)
+	held, _, err := repo.ListByStatusPage(context.Background(), settlement.StatusHeld, 50, nil)
 
 	require.NoError(t, err)
 	require.Len(t, held, 1)

@@ -232,34 +232,6 @@ func (r *TransactionRepository) Get(ctx context.Context, id uuid.UUID) (*Transac
 	return t, nil
 }
 
-// ListByStatus returns every transaction currently at the given status,
-// most recently scored first.
-func (r *TransactionRepository) ListByStatus(ctx context.Context, status string) ([]Transaction, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, amount, score, decision, status, triggered_rules, scored_at
-		FROM transactions WHERE status = $1 ORDER BY scored_at DESC
-	`, status)
-	if err != nil {
-		return nil, fmt.Errorf("list transactions by status: %w", err)
-	}
-	defer rows.Close()
-
-	var out []Transaction
-	for rows.Next() {
-		t, err := scanTransaction(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan transaction: %w", err)
-		}
-		accountIDs, err := r.accountIDsFor(ctx, t.ID)
-		if err != nil {
-			return nil, err
-		}
-		t.AccountIDs = accountIDs
-		out = append(out, *t)
-	}
-	return out, rows.Err()
-}
-
 // ListByStatusPage returns up to limit transactions at status, most recently
 // scored first with ties broken by id, starting strictly after `after` (nil
 // starts from the top). next is the cursor of the page's last row, or nil
@@ -373,7 +345,7 @@ func (r *TransactionRepository) resolve(ctx context.Context, id uuid.UUID, newSt
 }
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows, letting
-// scanTransaction serve Get (single row) and ListByStatus (row cursor)
+// scanTransaction serve Get (single row) and ListByStatusPage (row cursor)
 // with one implementation.
 type rowScanner interface {
 	Scan(dest ...any) error

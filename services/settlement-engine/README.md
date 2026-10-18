@@ -106,9 +106,12 @@ go test ./internal/risk/... -run TestScorer_Score_HoldOnVelocityLimit -v
 ## API
 
 - `GET /health` — health check.
-- `GET /transactions?status=<status>` — `200` list of Transaction filtered
-  by status (`pending_settlement` | `held` | `settled` | `rejected`),
-  most recently scored first. `400` if `status` is missing.
+- `GET /transactions?status=<status>[&limit=<n>][&cursor=<c>]` — `200`
+  `{"items": [Transaction...], "next_cursor": "<c>" | null}`, filtered by
+  status (`pending_settlement` | `held` | `settled` | `rejected`), most
+  recently scored first. `400` if `status` is missing, `limit` is not an
+  integer ≥ 1 (`invalid limit`), or `cursor` is not one this API issued
+  (`invalid cursor`).
 - `GET /transactions/{id}` — `200` Transaction or `404`.
 - `POST /transactions/{id}/approve` — moves a `held` transaction to
   `pending_settlement`. `200` updated Transaction, `404` if not found,
@@ -116,6 +119,11 @@ go test ./internal/risk/... -run TestScorer_Score_HoldOnVelocityLimit -v
 - `POST /transactions/{id}/reject` — moves a `held` transaction to the
   terminal `rejected` status. `200` updated Transaction, `404` if not
   found, `409` if not currently `held`.
-- `GET /settlements` — `200` list of Settlement, most recently created
-  first.
+- `GET /settlements[?limit=<n>][&cursor=<c>]` — `200`
+  `{"items": [Settlement...], "next_cursor": "<c>" | null}`, most recently
+  created first. Same `400`s as above for `limit` and `cursor`.
 - `GET /settlements/{id}` — `200` Settlement or `404`.
+
+Both lists are keyset-paginated: `limit` defaults to 50 and is capped at
+200; pass the previous response's `next_cursor` to get the next page. A row
+approved or rejected between two requests does not shift later pages.

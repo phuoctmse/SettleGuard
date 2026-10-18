@@ -2,7 +2,10 @@ package api_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -61,20 +64,33 @@ func TestListTransactions_RequiresStatus(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+type pageBody struct {
+	Items      []map[string]any `json:"items"`
+	NextCursor *string          `json:"next_cursor"`
+}
+
+func getPage(t *testing.T, url string) pageBody {
+	t.Helper()
+	resp, err := http.Get(url)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var body pageBody
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+	require.NotNil(t, body.Items, "items must be an array, never null")
+	return body
+}
+
 func TestListTransactions_ReturnsHeldOnly(t *testing.T) {
 	server, transactions, _ := newTestServer(t)
 	heldID := seedHeldTransaction(t, transactions)
 
-	resp, err := http.Get(server.URL + "/transactions?status=held")
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	body := getPage(t, server.URL+"/transactions?status=held")
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	var body []map[string]any
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-	require.Len(t, body, 1)
-	assert.Equal(t, heldID.String(), body[0]["id"])
-	assert.Equal(t, "held", body[0]["status"])
+	require.Len(t, body.Items, 1)
+	assert.Equal(t, heldID.String(), body.Items[0]["id"])
+	assert.Equal(t, "held", body.Items[0]["status"])
+	assert.Nil(t, body.NextCursor)
 }
 
 func TestGetTransaction_NotFound(t *testing.T) {
@@ -149,15 +165,97 @@ func TestListSettlements_ReturnsFinalizedBatches(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, seeded)
 
-	resp, err := http.Get(server.URL + "/settlements")
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	body := getPage(t, server.URL+"/settlements")
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	var body []map[string]any
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-	require.Len(t, body, 1)
-	assert.Equal(t, seeded.ID.String(), body[0]["id"])
+	require.Len(t, body.Items, 1)
+	assert.Equal(t, seeded.ID.String(), body.Items[0]["id"])
+	assert.Nil(t, body.NextCursor)
+}
+
+func TestListTransactions_PagesWithCursor(t *testing.T) {
+	server, transactions, _ := newTestServer(t)
+	seeded := map[string]bool{}
+	for range 3 {
+		seeded[seedHeldTransaction(t, transactions).String()] = true
+	}
+
+	first := getPage(t, server.URL+"/transactions?status=held&limit=2")
+	require.Len(t, first.Items, 2)
+	require.NotNil(t, first.NextCursor)
+
+	second := getPage(t, server.URL+"/transactions?status=held&limit=2&cursor="+*first.NextCursor)
+	require.Len(t, second.Items, 1)
+	assert.Nil(t, second.NextCursor)
+
+	got := map[string]bool{}
+	for _, item := range append(first.Items, second.Items...) {
+		got[item["id"].(string)] = true
+	}
+	assert.Equal(t, seeded, got)
+}
+
+func TestListTransactions_DefaultAndMaximumLimit(t *testing.T) {
+	server, transactions, _ := newTestServer(t)
+	for range 201 {
+		seedHeldTransaction(t, transactions)
+	}
+
+	assert.Len(t, getPage(t, server.URL+"/transactions?status=held").Items, 50)
+	assert.Len(t, getPage(t, server.URL+"/transactions?status=held&limit=500").Items, 200)
+}
+
+func TestListSettlements_PagesWithCursor(t *testing.T) {
+	server, transactions, settlements := newTestServer(t)
+	var batches []uuid.UUID
+	for range 2 {
+		require.NoError(t, transactions.RecordScore(context.Background(), []uuid.UUID{uuid.New()}, 5_000, risk.RiskScore{
+			TransactionID: uuid.New(), Score: 0, Decision: risk.DecisionPass,
+		}))
+		s, err := settlements.RunBatch(context.Background())
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		batches = append(batches, s.ID)
+	}
+
+	first := getPage(t, server.URL+"/settlements?limit=1")
+	require.Len(t, first.Items, 1)
+	require.NotNil(t, first.NextCursor)
+	second := getPage(t, server.URL+"/settlements?limit=1&cursor="+*first.NextCursor)
+	require.Len(t, second.Items, 1)
+	assert.Nil(t, second.NextCursor)
+
+	assert.Equal(t, batches[1].String(), first.Items[0]["id"]) // newest first
+	assert.Equal(t, batches[0].String(), second.Items[0]["id"])
+}
+
+func TestListEndpoints_RejectBadPaging(t *testing.T) {
+	server, _, _ := newTestServer(t)
+	notJSON := base64.RawURLEncoding.EncodeToString([]byte("not json"))
+	badID := base64.RawURLEncoding.EncodeToString([]byte(`{"t":"2026-10-18T12:00:00Z","id":"nope"}`))
+	badTime := base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"t":"yesterday","id":"%s"}`, uuid.New())))
+
+	cases := []struct{ query, message string }{
+		{"limit=0", "invalid limit"},
+		{"limit=-1", "invalid limit"},
+		{"limit=abc", "invalid limit"},
+		{"cursor=%25%25%25", "invalid cursor"},
+		{"cursor=" + notJSON, "invalid cursor"},
+		{"cursor=" + badID, "invalid cursor"},
+		{"cursor=" + badTime, "invalid cursor"},
+	}
+	for _, path := range []string{"/transactions?status=held&", "/settlements?"} {
+		for _, c := range cases {
+			t.Run(path+c.query, func(t *testing.T) {
+				resp, err := http.Get(server.URL + path + c.query)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+				assert.JSONEq(t, fmt.Sprintf(`{"error":%q}`, c.message), string(body))
+			})
+		}
+	}
 }
 
 func TestGetSettlement_NotFound(t *testing.T) {
