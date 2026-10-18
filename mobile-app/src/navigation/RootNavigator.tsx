@@ -62,6 +62,7 @@ export function RootNavigator() {
           name="Accounts"
           component={AccountsStackNavigator}
           options={{
+            tabBarButtonTestID: 'tab-accounts',
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Feather name="credit-card" size={size} color={color} />
@@ -72,6 +73,7 @@ export function RootNavigator() {
           name="Held"
           component={HeldTransactionsScreen}
           options={{
+            tabBarButtonTestID: 'tab-held',
             title: 'Held Transactions',
             tabBarIcon: ({ color, size }) => (
               <Feather name="pause-circle" size={size} color={color} />
@@ -82,6 +84,7 @@ export function RootNavigator() {
           name="Settlements"
           component={SettlementsScreen}
           options={{
+            tabBarButtonTestID: 'tab-settlements',
             title: 'Settlements',
             tabBarIcon: ({ color, size }) => (
               <Feather name="check-circle" size={size} color={color} />
@@ -92,6 +95,7 @@ export function RootNavigator() {
           name="Alerts"
           component={AlertsScreen}
           options={{
+            tabBarButtonTestID: 'tab-alerts',
             title: 'Alerts',
             tabBarIcon: ({ color, size }) => <Feather name="bell" size={size} color={color} />,
           }}
