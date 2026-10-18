@@ -44,3 +44,8 @@ export interface Notification {
   payload: Record<string, unknown>;
   created_at: string;
 }
+
+export interface Page<T> {
+  items: T[];
+  next_cursor: string | null;
+}

@@ -232,15 +232,26 @@ func (r *TransactionRepository) Get(ctx context.Context, id uuid.UUID) (*Transac
 	return t, nil
 }
 
-// ListByStatus returns every transaction currently at the given status,
-// most recently scored first.
-func (r *TransactionRepository) ListByStatus(ctx context.Context, status string) ([]Transaction, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, amount, score, decision, status, triggered_rules, scored_at
-		FROM transactions WHERE status = $1 ORDER BY scored_at DESC
-	`, status)
+// ListByStatusPage returns up to limit transactions at status, most recently
+// scored first with ties broken by id, starting strictly after `after` (nil
+// starts from the top). next is the cursor of the page's last row, or nil
+// when nothing follows. It fetches limit+1 rows to know that without a COUNT.
+func (r *TransactionRepository) ListByStatusPage(ctx context.Context, status string, limit int, after *Cursor) ([]Transaction, *Cursor, error) {
+	const query = `SELECT id, amount, score, decision, status, triggered_rules, scored_at FROM transactions`
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if after == nil {
+		rows, err = r.db.QueryContext(ctx, query+`
+			WHERE status = $1 ORDER BY scored_at DESC, id DESC LIMIT $2`, status, limit+1)
+	} else {
+		rows, err = r.db.QueryContext(ctx, query+`
+			WHERE status = $1 AND (scored_at, id) < ($2, $3)
+			ORDER BY scored_at DESC, id DESC LIMIT $4`, status, after.At, after.ID, limit+1)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("list transactions by status: %w", err)
+		return nil, nil, fmt.Errorf("list transactions by status: %w", err)
 	}
 	defer rows.Close()
 
@@ -248,16 +259,31 @@ func (r *TransactionRepository) ListByStatus(ctx context.Context, status string)
 	for rows.Next() {
 		t, err := scanTransaction(rows)
 		if err != nil {
-			return nil, fmt.Errorf("scan transaction: %w", err)
+			return nil, nil, fmt.Errorf("scan transaction: %w", err)
 		}
-		accountIDs, err := r.accountIDsFor(ctx, t.ID)
-		if err != nil {
-			return nil, err
-		}
-		t.AccountIDs = accountIDs
 		out = append(out, *t)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	// Close before the per-transaction queries so each one can reuse this
+	// connection instead of opening another while rows is held.
+	rows.Close()
+
+	var next *Cursor
+	if len(out) > limit {
+		out = out[:limit]
+		last := out[limit-1]
+		next = &Cursor{At: last.ScoredAt, ID: last.ID}
+	}
+	for i := range out {
+		accountIDs, err := r.accountIDsFor(ctx, out[i].ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		out[i].AccountIDs = accountIDs
+	}
+	return out, next, nil
 }
 
 // Approve moves a held transaction back into the normal settlement flow
@@ -319,7 +345,7 @@ func (r *TransactionRepository) resolve(ctx context.Context, id uuid.UUID, newSt
 }
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows, letting
-// scanTransaction serve Get (single row) and ListByStatus (row cursor)
+// scanTransaction serve Get (single row) and ListByStatusPage (row cursor)
 // with one implementation.
 type rowScanner interface {
 	Scan(dest ...any) error

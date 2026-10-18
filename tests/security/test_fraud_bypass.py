@@ -133,6 +133,8 @@ def test_held_transaction_excluded_from_settlements_until_approved(accounts, led
     # give a batch cycle a chance to run and confirm it was skipped
     time.sleep(6)
 
-    for s in settlement.list_settlements().json():
+    # The newest page covers every settlement created after this transaction
+    # was held, which is the only window it could have been settled in.
+    for s in settlement.list_settlements().json()["items"]:
         detail = settlement.get_settlement(s["id"]).json()
         assert tx[0]["transaction_id"] not in detail["transaction_ids"]
