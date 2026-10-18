@@ -1,4 +1,5 @@
 [tool.pytest.ini_options]
 testpaths = ["api", "security"]
-pythonpath = ["api"]
-addopts = ["--import-mode=importlib"]
+pythonpath = ["api", "security/zap"]
+addopts = ["--import-mode=importlib", "-m", "not destructive"]
+markers = ["destructive: leaves a live service broken until restarted; run last, alone (pytest -m destructive)"]

@@ -88,3 +88,6 @@ coverage.out
 
 # --- Superpowers subagent-driven-development scratch (ledgers, briefs, reports) ---
 /.superpowers/
+
+# --- ZAP scan output ---
+tests/security/zap/out/
