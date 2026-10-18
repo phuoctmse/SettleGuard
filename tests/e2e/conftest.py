@@ -52,3 +52,33 @@ def _wait_until(predicate, timeout=20.0, interval=0.5):
 @pytest.fixture
 def wait_until():
     return _wait_until
+
+
+HOLD_AMOUNT = 20_000_000  # over SETTLEMENT_MISMATCH_THRESHOLD (default 10,000,000)
+
+
+@pytest.fixture
+def held_tx(accounts, ledger, settlement, wait_until):
+    """Returns a factory: each call posts a fresh over-threshold transaction
+    and waits until settlement-engine has scored it as held."""
+
+    def _make() -> str:
+        client_id = accounts.create_client(f"E2E held {uuid.uuid4()}").json()["id"]
+        debit = accounts.create_account(client_id).json()["id"]
+        credit = accounts.create_account(client_id).json()["id"]
+        resp = ledger.post_transaction([
+            {"account_id": debit, "direction": "debit", "amount": HOLD_AMOUNT, "reason": "e2e-hold"},
+            {"account_id": credit, "direction": "credit", "amount": HOLD_AMOUNT, "reason": "e2e-hold"},
+        ])
+        if resp.status_code != 201:
+            pytest.fail(f"seeding the held transaction failed: {resp.status_code} {resp.text}")
+        tx_id = resp.json()[0]["transaction_id"]
+
+        def is_held():
+            r = settlement.get_transaction(tx_id)
+            return True if r.status_code == 200 and r.json()["status"] == "held" else None
+
+        wait_until(is_held)
+        return tx_id
+
+    return _make
