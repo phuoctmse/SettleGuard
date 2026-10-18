@@ -1,17 +1,29 @@
 import { FlatList, Text } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { listSettlements } from '../api/settlement';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
+import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { colors, typography } from '../theme';
 
 export function SettlementsScreen() {
-  const { data, isLoading, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery({
     queryKey: ['settlements'],
-    queryFn: listSettlements,
+    queryFn: ({ pageParam }) => listSettlements(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
 
   if (isLoading) {
     return (
@@ -20,7 +32,7 @@ export function SettlementsScreen() {
       </ScreenContainer>
     );
   }
-  if (error) {
+  if (error && !data) {
     return (
       <ScreenContainer>
         <EmptyState status="error" message="Failed to load settlements." />
@@ -31,8 +43,18 @@ export function SettlementsScreen() {
   return (
     <ScreenContainer>
       <FlatList
-        data={data}
+        testID="settlements-list"
+        data={items}
         keyExtractor={(s) => s.id}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          <LoadMoreFooter loading={isFetchingNextPage} failed={isFetchNextPageError} />
+        }
         renderItem={({ item }) => (
           <Card testID={`settlement-card-${item.id}`}>
             <Text style={[typography.body, { color: colors.textPrimary }]}>

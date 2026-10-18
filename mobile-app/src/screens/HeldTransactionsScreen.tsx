@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { approveTransaction, listHeldTransactions, rejectTransaction } from '../api/settlement';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -8,14 +8,26 @@ import { Card } from '../components/Card';
 import { StatusChip } from '../components/StatusChip';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
+import { LoadMoreFooter } from '../components/LoadMoreFooter';
 import { colors, spacing, typography } from '../theme';
 
 export function HeldTransactionsScreen() {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery({
     queryKey: ['held-transactions'],
-    queryFn: listHeldTransactions,
+    queryFn: ({ pageParam }) => listHeldTransactions(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
   const [actionError, setActionError] = useState<string | null>(null);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['held-transactions'] });
@@ -39,7 +51,7 @@ export function HeldTransactionsScreen() {
       </ScreenContainer>
     );
   }
-  if (error) {
+  if (error && !data) {
     return (
       <ScreenContainer>
         <EmptyState status="error" message="Failed to load held transactions." />
@@ -50,8 +62,18 @@ export function HeldTransactionsScreen() {
   return (
     <ScreenContainer>
       <FlatList
-        data={data}
+        testID="held-list"
+        data={items}
         keyExtractor={(t) => t.id}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          <LoadMoreFooter loading={isFetchingNextPage} failed={isFetchNextPageError} />
+        }
         ListHeaderComponent={
           actionError ? (
             <Text style={[typography.body, styles.errorText]}>{actionError}</Text>

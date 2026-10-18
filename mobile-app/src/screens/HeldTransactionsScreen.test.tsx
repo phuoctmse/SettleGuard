@@ -15,18 +15,32 @@ function renderWithQuery(ui: React.ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
+const page = <T,>(items: T[], next_cursor: string | null = null) => ({ items, next_cursor });
+
+const heldTx = (id: string, amount: number) => ({
+  id,
+  amount,
+  score: 0.9,
+  decision: 'hold',
+  status: 'held',
+  triggered_rules: [],
+  scored_at: '',
+});
+
 it('renders held transactions returned by listHeldTransactions', async () => {
-  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    {
-      id: 'txn-1',
-      amount: 500,
-      score: 0.9,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: ['velocity_limit'],
-      scored_at: '',
-    },
-  ]);
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue(
+    page([
+      {
+        id: 'txn-1',
+        amount: 500,
+        score: 0.9,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: ['velocity_limit'],
+        scored_at: '',
+      },
+    ]),
+  );
 
   const { findByText } = await renderWithQuery(<HeldTransactionsScreen />);
 
@@ -36,18 +50,20 @@ it('renders held transactions returned by listHeldTransactions', async () => {
 
 it('calls approveTransaction with the row id and removes the row after approval', async () => {
   (settlementApi.listHeldTransactions as jest.Mock)
-    .mockResolvedValueOnce([
-      {
-        id: 'txn-1',
-        amount: 500,
-        score: 0.9,
-        decision: 'hold',
-        status: 'held',
-        triggered_rules: [],
-        scored_at: '',
-      },
-    ])
-    .mockResolvedValueOnce([]);
+    .mockResolvedValueOnce(
+      page([
+        {
+          id: 'txn-1',
+          amount: 500,
+          score: 0.9,
+          decision: 'hold',
+          status: 'held',
+          triggered_rules: [],
+          scored_at: '',
+        },
+      ]),
+    )
+    .mockResolvedValueOnce(page([]));
   (settlementApi.approveTransaction as jest.Mock).mockResolvedValue(undefined);
 
   const { findByText, getByText, queryByText } = await renderWithQuery(<HeldTransactionsScreen />);
@@ -72,26 +88,28 @@ it('shows a failure message when listHeldTransactions errors', async () => {
 });
 
 it('shows an error message and does not disable other rows when approve fails', async () => {
-  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    {
-      id: 'txn-1',
-      amount: 500,
-      score: 0.9,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-    {
-      id: 'txn-2',
-      amount: 200,
-      score: 0.5,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-  ]);
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue(
+    page([
+      {
+        id: 'txn-1',
+        amount: 500,
+        score: 0.9,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+      {
+        id: 'txn-2',
+        amount: 200,
+        score: 0.5,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+    ]),
+  );
   (settlementApi.approveTransaction as jest.Mock).mockRejectedValue(new Error('conflict'));
 
   const { findByText, getAllByText } = await renderWithQuery(<HeldTransactionsScreen />);
@@ -105,26 +123,28 @@ it('shows an error message and does not disable other rows when approve fails', 
 });
 
 it('only disables the row being approved, not other rows, while the mutation is in flight', async () => {
-  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    {
-      id: 'txn-1',
-      amount: 500,
-      score: 0.9,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-    {
-      id: 'txn-2',
-      amount: 200,
-      score: 0.5,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-  ]);
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue(
+    page([
+      {
+        id: 'txn-1',
+        amount: 500,
+        score: 0.9,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+      {
+        id: 'txn-2',
+        amount: 200,
+        score: 0.5,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+    ]),
+  );
   let resolveApprove: () => void;
   (settlementApi.approveTransaction as jest.Mock).mockReturnValue(
     new Promise<void>((resolve) => {
@@ -146,26 +166,28 @@ it('only disables the row being approved, not other rows, while the mutation is 
 });
 
 it('exposes per-row testIDs and approves/rejects the right row by id', async () => {
-  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    {
-      id: 'txn-1',
-      amount: 500,
-      score: 0.9,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-    {
-      id: 'txn-2',
-      amount: 200,
-      score: 0.5,
-      decision: 'hold',
-      status: 'held',
-      triggered_rules: [],
-      scored_at: '',
-    },
-  ]);
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue(
+    page([
+      {
+        id: 'txn-1',
+        amount: 500,
+        score: 0.9,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+      {
+        id: 'txn-2',
+        amount: 200,
+        score: 0.5,
+        decision: 'hold',
+        status: 'held',
+        triggered_rules: [],
+        scored_at: '',
+      },
+    ]),
+  );
   (settlementApi.approveTransaction as jest.Mock).mockResolvedValue(undefined);
   (settlementApi.rejectTransaction as jest.Mock).mockResolvedValue(undefined);
 
@@ -185,4 +207,46 @@ it('exposes per-row testIDs and approves/rejects the right row by id', async () 
   await waitFor(() => {
     expect(settlementApi.listHeldTransactions).toHaveBeenCalledTimes(3);
   });
+});
+
+it('loads the next page with its cursor when the list reaches the end', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock)
+    .mockResolvedValueOnce(page([heldTx('txn-1', 500)], 'cursor-2'))
+    .mockResolvedValueOnce(page([heldTx('txn-2', 200)]));
+
+  const { findByTestId, getByTestId } = await renderWithQuery(<HeldTransactionsScreen />);
+  await findByTestId('held-tx-txn-1');
+
+  await fireEvent(getByTestId('held-list'), 'onEndReached');
+
+  expect(await findByTestId('held-tx-txn-2')).toBeTruthy();
+  expect(getByTestId('held-tx-txn-1')).toBeTruthy();
+  expect((settlementApi.listHeldTransactions as jest.Mock).mock.calls[1][0]).toBe('cursor-2');
+});
+
+it('does not request another page when there is no next cursor', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue(page([heldTx('txn-1', 500)]));
+
+  const { findByTestId, getByTestId } = await renderWithQuery(<HeldTransactionsScreen />);
+  await findByTestId('held-tx-txn-1');
+
+  await fireEvent(getByTestId('held-list'), 'onEndReached');
+
+  expect(settlementApi.listHeldTransactions).toHaveBeenCalledTimes(1);
+});
+
+it('keeps loaded rows and shows a footer when the next page fails', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock)
+    .mockResolvedValueOnce(page([heldTx('txn-1', 500)], 'cursor-2'))
+    .mockRejectedValueOnce(new Error('network error'));
+
+  const { findByTestId, findByText, getByTestId } = await renderWithQuery(
+    <HeldTransactionsScreen />,
+  );
+  await findByTestId('held-tx-txn-1');
+
+  await fireEvent(getByTestId('held-list'), 'onEndReached');
+
+  expect(await findByText('Failed to load more.')).toBeTruthy();
+  expect(getByTestId('held-tx-txn-1')).toBeTruthy();
 });
