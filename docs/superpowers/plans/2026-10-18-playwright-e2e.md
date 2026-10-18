@@ -768,6 +768,9 @@ Xem trace: `python -m playwright show-trace test-results/<tên test>/trace.zip`.
 - Tab Held và Settlements không tự tải lại: mỗi test seed dữ liệu **trước**
   rồi mới mở tab lần đầu. Nếu tự viết test mới, giữ đúng thứ tự đó hoặc
   `page.reload()`.
+- Danh sách Held và Settlements phân trang (mới nhất trước, 50 dòng/trang);
+  test chỉ tìm ở trang đầu, nên đừng chạy song song nhiều suite ghi dữ liệu
+  cùng lúc.
 - `/notifications` không trả lời → có thể test `destructive` của
   `tests/security` (SG-PT-07) vừa chạy; khởi động lại notification-service.
 
