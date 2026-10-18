@@ -1,0 +1,7 @@
+# pg_stat_database (datname='ledger') "sessions,xact_commit" before/after a
+# 30 s run of the shared-setup-client locustfile, spawn rate = users.
+# Query: SELECT sessions, xact_commit FROM pg_stat_database WHERE datname='ledger'
+# Locust request counts are in sessions_u<N>.txt.
+u100: before=10879,86439 after=13939,98933  -> 3060 new sessions, 6205 requests
+u20:  before=13940,98973 after=14212,102659 -> 272 new sessions, 1793 requests
+u50:  before=14213,102704 after=15631,110813 -> 1418 new sessions, 4160 requests

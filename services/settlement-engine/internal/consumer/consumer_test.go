@@ -171,3 +171,54 @@ func TestConsumer_AcksHeldTransaction(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT count(*) FROM transactions WHERE id = $1`, txID).Scan(&count))
 	require.Equal(t, 1, count)
 }
+
+// A payload TotalAmount cannot interpret must be terminated, not scored.
+// Before this guard the consumer summed only entries it recognised, so an
+// unknown direction scored as amount 0 -- under any threshold -- and was
+// persisted as pending_settlement.
+func TestConsumer_TerminatesUninterpretableAmountWithoutScoring(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	nc, js := testutil.NewTestNATS(t)
+	ctx := context.Background()
+	ensureLedgerStream(t, ctx, js)
+
+	transactions := settlement.NewTransactionRepository(db)
+	scorer := risk.NewScorer(testScorerConfig(), transactions, transactions)
+
+	c := consumer.New(scorer, transactions)
+	consumeCtx, err := c.Start(ctx, js)
+	require.NoError(t, err)
+	t.Cleanup(consumeCtx.Stop)
+
+	badTx, acc := uuid.New(), uuid.New()
+	bad, err := json.Marshal(ledgerevent.OutboxPayload{
+		TransactionID: badTx,
+		Entries: []ledgerevent.OutboxPayloadEntry{
+			{ID: uuid.New(), AccountID: acc, Direction: "refund", Amount: 100, CreatedAt: time.Now()},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, nc.Publish(ledgerevent.EventLedgerEntryRecorded, bad))
+
+	goodTx := uuid.New()
+	publishLedgerEntry(t, ctx, js, goodTx, acc, 2_000)
+
+	require.Eventually(t, func() bool {
+		status, ok := transactionStatus(t, db, goodTx)
+		return ok && status == settlement.StatusPendingSettlement
+	}, 5*time.Second, 100*time.Millisecond, "an uninterpretable payload must not block later valid ones")
+
+	// Term, not Nak. A Nak'd message is redelivered indefinitely -- this
+	// consumer sets no MaxDeliver -- so "no row was written" alone cannot
+	// tell a terminated message from one stuck in a redelivery loop. Zero
+	// redeliveries can only mean Term.
+	time.Sleep(500 * time.Millisecond)
+	cons, err := js.Consumer(ctx, broker.LedgerEventsStream, consumer.DurableName)
+	require.NoError(t, err)
+	info, err := cons.Info(ctx)
+	require.NoError(t, err)
+	require.Zero(t, info.NumRedelivered, "a terminated message is never redelivered; redeliveries mean it was Nak'd")
+
+	_, ok := transactionStatus(t, db, badTx)
+	require.False(t, ok, "uninterpretable payload must be terminated, not persisted as a scored transaction")
+}

@@ -24,7 +24,9 @@ export function Button({ title, onPress, disabled, variant = 'primary' }: Props)
         pressed && !disabled ? styles.pressed : null,
       ]}
     >
-      <Text style={[typography.body, isPrimary ? styles.primaryText : styles.secondaryText]}>{title}</Text>
+      <Text style={[typography.body, isPrimary ? styles.primaryText : styles.secondaryText]}>
+        {title}
+      </Text>
     </Pressable>
   );
 }

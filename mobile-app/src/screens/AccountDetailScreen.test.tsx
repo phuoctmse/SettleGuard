@@ -23,11 +23,21 @@ it('renders balance and ledger entries returned by the queries', async () => {
     created_at: '',
   });
   (ledgerApi.listEntriesForAccount as jest.Mock).mockResolvedValue([
-    { id: 'entry-1', account_id: 'acc-1', direction: 'credit', amount: 500, reason: 'payout', created_at: '' },
+    {
+      id: 'entry-1',
+      account_id: 'acc-1',
+      direction: 'credit',
+      amount: 500,
+      reason: 'payout',
+      created_at: '',
+    },
   ]);
 
   const { findByText } = await renderWithQuery(
-    <AccountDetailScreen navigation={{} as any} route={{ params: { accountId: 'acc-1' } } as any} />,
+    <AccountDetailScreen
+      navigation={{} as any}
+      route={{ params: { accountId: 'acc-1' } } as any}
+    />,
   );
 
   expect(await findByText('Balance: 500')).toBeTruthy();
@@ -39,7 +49,10 @@ it('shows a failure message when the account query errors', async () => {
   (ledgerApi.listEntriesForAccount as jest.Mock).mockResolvedValue([]);
 
   const { findByText } = await renderWithQuery(
-    <AccountDetailScreen navigation={{} as any} route={{ params: { accountId: 'acc-1' } } as any} />,
+    <AccountDetailScreen
+      navigation={{} as any}
+      route={{ params: { accountId: 'acc-1' } } as any}
+    />,
   );
 
   expect(await findByText('Failed to load account.')).toBeTruthy();
@@ -57,7 +70,10 @@ it('shows balance but a failure message for entries when the ledger query errors
   (ledgerApi.listEntriesForAccount as jest.Mock).mockRejectedValue(new Error('network error'));
 
   const { findByText } = await renderWithQuery(
-    <AccountDetailScreen navigation={{} as any} route={{ params: { accountId: 'acc-1' } } as any} />,
+    <AccountDetailScreen
+      navigation={{} as any}
+      route={{ params: { accountId: 'acc-1' } } as any}
+    />,
   );
 
   expect(await findByText('Balance: 500')).toBeTruthy();

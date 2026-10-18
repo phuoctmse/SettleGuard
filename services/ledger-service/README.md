@@ -12,7 +12,7 @@ enabled (`docker compose -f infra/docker/docker-compose.yml up -d
 ledger-postgres nats`).
 
 ```bash
-export DATABASE_URL="postgres://ledger:ledger@localhost:5432/ledger?sslmode=disable"
+export DATABASE_URL="postgres://ledger:ledger@localhost:5433/ledger?sslmode=disable"
 export NATS_URL="nats://localhost:4222"
 go run ./cmd/server
 ```

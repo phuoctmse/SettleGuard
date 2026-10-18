@@ -61,7 +61,17 @@ func (c *Consumer) handleMessage(msg jetstream.Msg) {
 	}
 
 	accountIDs := ledgerevent.AccountIDs(payload.Entries)
-	amount := ledgerevent.TotalAmount(payload.Entries)
+	// A payload whose amount cannot be interpreted -- a sum that would wrap,
+	// a non-positive entry, an unknown direction -- is malformed input, not
+	// a transient failure. Term it like a JSON error: Nak would redeliver it
+	// forever, and scoring it would feed a meaningless total to the
+	// mismatch_threshold rule.
+	amount, err := ledgerevent.TotalAmount(payload.Entries)
+	if err != nil {
+		log.Printf("consumer: transaction %s: %v, terminating message", payload.TransactionID, err)
+		_ = msg.Term()
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), scoreTimeout)
 	defer cancel()

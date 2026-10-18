@@ -1,0 +1,6 @@
+drain timeout
+label=u100_60s users=100 spawn_rate=5 duration=60s locust_rc=0
+locust_start=1792250989.890576100 locust_end=1792251051.318890900
+drain_seconds_after_locust_end=181
+service_cpu_seconds_before: accounts-service=49.23 ledger-service=72.2 settlement-engine=50.48 
+service_cpu_seconds_after:  accounts-service=57.14 ledger-service=131.75 settlement-engine=58.69 

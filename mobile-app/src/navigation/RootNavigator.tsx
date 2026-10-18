@@ -30,9 +30,21 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 function AccountsStackNavigator() {
   return (
     <AccountsStack.Navigator initialRouteName="ClientLookup">
-      <AccountsStack.Screen name="ClientLookup" component={ClientLookupScreen} options={{ title: 'SettleGuard' }} />
-      <AccountsStack.Screen name="AccountList" component={AccountListScreen} options={{ title: 'Accounts' }} />
-      <AccountsStack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ title: 'Account' }} />
+      <AccountsStack.Screen
+        name="ClientLookup"
+        component={ClientLookupScreen}
+        options={{ title: 'SettleGuard' }}
+      />
+      <AccountsStack.Screen
+        name="AccountList"
+        component={AccountListScreen}
+        options={{ title: 'Accounts' }}
+      />
+      <AccountsStack.Screen
+        name="AccountDetail"
+        component={AccountDetailScreen}
+        options={{ title: 'Account' }}
+      />
     </AccountsStack.Navigator>
   );
 }
@@ -51,7 +63,9 @@ export function RootNavigator() {
           component={AccountsStackNavigator}
           options={{
             headerShown: false,
-            tabBarIcon: ({ color, size }) => <Feather name="credit-card" size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="credit-card" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen
@@ -59,7 +73,9 @@ export function RootNavigator() {
           component={HeldTransactionsScreen}
           options={{
             title: 'Held Transactions',
-            tabBarIcon: ({ color, size }) => <Feather name="pause-circle" size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="pause-circle" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen
@@ -67,7 +83,9 @@ export function RootNavigator() {
           component={SettlementsScreen}
           options={{
             title: 'Settlements',
-            tabBarIcon: ({ color, size }) => <Feather name="check-circle" size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="check-circle" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen

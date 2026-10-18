@@ -69,8 +69,24 @@ it('shows a failure message when listHeldTransactions errors', async () => {
 
 it('shows an error message and does not disable other rows when approve fails', async () => {
   (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    { id: 'txn-1', amount: 500, score: 0.9, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
-    { id: 'txn-2', amount: 200, score: 0.5, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+    {
+      id: 'txn-1',
+      amount: 500,
+      score: 0.9,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
+    {
+      id: 'txn-2',
+      amount: 200,
+      score: 0.5,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
   ]);
   (settlementApi.approveTransaction as jest.Mock).mockRejectedValue(new Error('conflict'));
 
@@ -86,8 +102,24 @@ it('shows an error message and does not disable other rows when approve fails', 
 
 it('only disables the row being approved, not other rows, while the mutation is in flight', async () => {
   (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
-    { id: 'txn-1', amount: 500, score: 0.9, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
-    { id: 'txn-2', amount: 200, score: 0.5, decision: 'hold', status: 'held', triggered_rules: [], scored_at: '' },
+    {
+      id: 'txn-1',
+      amount: 500,
+      score: 0.9,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
+    {
+      id: 'txn-2',
+      amount: 200,
+      score: 0.5,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
   ]);
   let resolveApprove: () => void;
   (settlementApi.approveTransaction as jest.Mock).mockReturnValue(

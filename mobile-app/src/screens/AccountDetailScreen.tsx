@@ -15,8 +15,14 @@ type Props = NativeStackScreenProps<AccountsStackParamList, 'AccountDetail'>;
 
 export function AccountDetailScreen({ route }: Props) {
   const { accountId } = route.params;
-  const account = useQuery({ queryKey: ['account', accountId], queryFn: () => getAccount(accountId) });
-  const entries = useQuery({ queryKey: ['entries', accountId], queryFn: () => listEntriesForAccount(accountId) });
+  const account = useQuery({
+    queryKey: ['account', accountId],
+    queryFn: () => getAccount(accountId),
+  });
+  const entries = useQuery({
+    queryKey: ['entries', accountId],
+    queryFn: () => listEntriesForAccount(accountId),
+  });
 
   if (account.isLoading) {
     return (
@@ -38,7 +44,9 @@ export function AccountDetailScreen({ route }: Props) {
       {account.data && (
         <View style={styles.header}>
           <BalanceDisplay amount={account.data.balance} />
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Status: {account.data.status}</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            Status: {account.data.status}
+          </Text>
         </View>
       )}
       {entries.error ? (
@@ -52,7 +60,9 @@ export function AccountDetailScreen({ route }: Props) {
               <Text style={[typography.body, { color: colors.textPrimary }]}>
                 {item.direction} {item.amount}
               </Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.reason}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {item.reason}
+              </Text>
             </Card>
           )}
           ListEmptyComponent={<EmptyState status="empty" message="No ledger entries yet." />}

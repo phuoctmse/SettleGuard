@@ -131,6 +131,52 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   **Ở đâu:** `services/notification-service/internal/consumer`
   (`decide_risk_scored`).
 
+## gateway
+
+> **Phạm vi của cả ba rule dưới: chỉ traffic đi qua gateway (`:8000`).**
+> Bốn service vẫn nghe trực tiếp trên `:8080`–`:8083` và **không** có auth
+> ở đó — ai chạm được tới cổng đó thì bỏ qua sạch mục này. Ngoài ra
+> gateway *xác thực* (request này của client nào) chứ không *phân quyền*
+> (client này được đụng vào account nào): AUTH-01 hoàn toàn **không** ngăn
+> client A ghi bút toán vào account của client B. Phân quyền theo quyền sở
+> hữu là spec riêng chưa làm — xem
+> `docs/superpowers/specs/2026-09-10-gateway-design.md` §10.1.
+
+- **AUTH-01** — Mọi route proxy (`/ledger/*`, `/accounts/*`,
+  `/settlement/*`, `/notifications/*`) đòi header `Authorization: Bearer
+  <key>` với key hợp lệ và chưa thu hồi. Thiếu key, sai định dạng, key lạ
+  hoặc key đã revoke đều trả `401 {"error":"unauthorized"}` và **không**
+  forward request lên upstream. `GET /health` là route duy nhất nằm ngoài
+  nhóm xác thực.
+  **Vì sao:** gateway là chỗ duy nhất trong hệ thống có xác thực, nên một
+  route lọt ra ngoài nhóm đồng nghĩa service phía sau nó không còn lớp
+  phòng thủ nào. Bốn lý do từ chối trả về cùng một message vì phân biệt
+  chúng là tiết lộ key nào có tồn tại.
+  **Ở đâu:** `services/gateway/internal/api/auth.go` (`APIKeyAuth`),
+  `services/gateway/internal/api/router.go` (nhóm `r.Group` bọc 4 prefix).
+
+- **AUTH-02** — DB của gateway chỉ giữ SHA-256 của API key, không bao giờ
+  giữ key thô. Key thô hiện đúng một lần lúc `adminctl create`; so khớp
+  khi xác thực dùng constant-time.
+  **Vì sao:** rò cả bảng `api_keys` không được phép tương đương rò toàn bộ
+  key đang hoạt động. Không salt từng dòng vì làm vậy thì không tra cứu
+  được theo hash — key là secret ngẫu nhiên 256-bit chứ không phải mật
+  khẩu người đặt, nên không cần chống brute-force theo từ điển.
+  **Ở đâu:** `services/gateway/internal/auth/key.go` (`GenerateKey`,
+  `HashKey`), `services/gateway/internal/auth/repository.go` (`Lookup`).
+
+- **AUTH-03** — Trust boundary: `X-Client-Id` mà upstream nhận được luôn
+  là khẳng định của gateway, không bao giờ là của client — set bằng `Set`
+  chứ không `Add`. `Authorization` và `Connection` bị xoá khỏi request
+  trước khi forward.
+  **Vì sao:** nếu client tự đặt được `X-Client-Id` thì mọi phân quyền xây
+  trên header đó sau này vô nghĩa ngay từ ngày đầu. `Connection` phải xoá
+  vì `httputil.ReverseProxy` strip các header được liệt kê trong đó *sau*
+  khi director chạy, nên `Connection: X-Client-Id` từ client sẽ xoá đúng
+  cái header gateway vừa đặt. `Authorization` không đi tiếp vì không
+  service nào cần nó.
+  **Ở đâu:** `services/gateway/internal/api/auth.go` (`APIKeyAuth`).
+
 ## Quy tắc xuyên suốt (cross-cutting)
 
 - **CROSS-01** — Mọi consumer của NATS JetStream event phải idempotent —
@@ -151,3 +197,23 @@ vào đây — đừng để nó chỉ tồn tại ngầm trong code.
   hai việc này atomic với nhau.
   **Ở đâu:** `internal/outbox` (bảng `outbox_events` + `Relay`) ở từng
   service.
+
+- **MONEY-01** — Mọi trường tiền (`amount` ở `ledger_entries`,
+  `transactions`, `settlements`; `balance` ở `accounts`) là **số nguyên
+  VND, đơn vị đồng** — không phải cents, không nhân/chia 100 ở bất kỳ
+  đâu. Kiểu lưu là `BIGINT`; không dùng `float`/`double` cho tiền.
+  Hiển thị thì format phân tách hàng nghìn (`10.000.000 ₫`), còn giá trị
+  truyền qua API vẫn là số nguyên trần.
+  **Vì sao:** trước đây đơn vị này chỉ tồn tại ngầm — không code, docs
+  hay test nào nói `amount` là gì, nên ngưỡng `SETTLEMENT_MISMATCH_THRESHOLD
+  = 10000000` có thể đọc thành "10 triệu đồng" hoặc "100.000 USD" tuỳ
+  người. Một hệ thống tài chính mà đơn vị tiền không xác định thì mọi
+  ngưỡng rủi ro, mọi so sánh số dư và mọi con số hiển thị đều mơ hồ. VND
+  không có đơn vị phụ trên thực tế nên lưu thẳng số đồng là biểu diễn
+  đúng, tránh hẳn lớp nhân/chia 100 vốn là nguồn lỗi kinh điển. Số
+  nguyên (không phải float) vì sai số dấu phẩy động làm hỏng bất biến
+  double-entry ở LEDGER-01.
+  **Ở đâu:** cột `amount`/`balance` trong migration của cả 4 service;
+  `risk.Config.MismatchThreshold`; helper format tiền phía `mobile-app`.
+  Charter chốt v1 đơn tệ nên chưa có cột `currency` — thêm đa tệ là thay
+  đổi lớn, phải sửa rule này trước.
