@@ -37,8 +37,10 @@ paths:
     get:
       operationId: listTransactions
       summary: List Transactions
-      description: Lists transactions filtered by a specific status. Currently only used for querying held transactions.
+      description: Lists transactions filtered by a specific status. Currently only used for querying held transactions. Keyset-paginated.
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
         - name: status
           in: query
           required: true
@@ -47,15 +49,13 @@ paths:
             type: string
       responses:
         '200':
-          description: A list of transactions
+          description: A page of transactions, most recently scored first
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Transaction'
+                $ref: '#/components/schemas/TransactionPage'
         '400':
-          description: Missing status query param
+          description: Missing status, invalid limit, or invalid cursor
           content:
             application/json:
               schema:
@@ -212,16 +212,23 @@ paths:
     get:
       operationId: listSettlements
       summary: List Settlements
-      description: Lists all settlements.
+      description: Lists settlements. Keyset-paginated.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: A list of settlements
+          description: A page of settlements, most recently created first
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Settlement'
+                $ref: '#/components/schemas/SettlementPage'
+        '400':
+          description: Invalid limit or invalid cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Internal server error
           content:
@@ -304,7 +311,46 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Page size. Defaults to 50; values above 200 are clamped to 200.
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque `next_cursor` from the previous page. Omit for the first page.
+      schema:
+        type: string
   schemas:
+    TransactionPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        next_cursor:
+          type: ['string', 'null']
+          description: Pass as `cursor` to get the next page; null on the last page.
+    SettlementPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Settlement'
+        next_cursor:
+          type: ['string', 'null']
+          description: Pass as `cursor` to get the next page; null on the last page.
     HealthResponse:
       type: object
       properties:
