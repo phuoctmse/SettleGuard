@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { HeldTransactionsScreen } from './HeldTransactionsScreen';
@@ -249,4 +249,42 @@ it('keeps loaded rows and shows a footer when the next page fails', async () => 
 
   expect(await findByText('Failed to load more.')).toBeTruthy();
   expect(getByTestId('held-tx-txn-1')).toBeTruthy();
+});
+
+it('does not load the next page while an approve-triggered refetch is in flight', async () => {
+  // Guards the onEndReached check: fetchNextPage() cancels a running refetch by default
+  // (react-query v5), which would leave the approved row on screen.
+  let resolveRefetch: (v: unknown) => void;
+  (settlementApi.listHeldTransactions as jest.Mock)
+    .mockResolvedValueOnce(page([heldTx('txn-1', 500)], 'cursor-2'))
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    )
+    .mockResolvedValue(page([heldTx('txn-2', 200)]));
+  (settlementApi.approveTransaction as jest.Mock).mockResolvedValue(undefined);
+
+  const { findByTestId, getByTestId } = await renderWithQuery(<HeldTransactionsScreen />);
+  await findByTestId('held-tx-txn-1');
+
+  await fireEvent.press(getByTestId('approve-txn-1'));
+  await waitFor(() => {
+    expect(settlementApi.listHeldTransactions).toHaveBeenCalledTimes(2);
+  });
+
+  // Let react-query's batched notification re-render the screen with isFetching = true.
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+  await fireEvent(getByTestId('held-list'), 'onEndReached');
+
+  const calls = (settlementApi.listHeldTransactions as jest.Mock).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(calls.some((c) => c[0] === 'cursor-2')).toBe(false);
+
+  resolveRefetch!(page([]));
+  await waitFor(() => {
+    expect(settlementApi.listHeldTransactions).toHaveBeenCalledTimes(2);
+  });
 });

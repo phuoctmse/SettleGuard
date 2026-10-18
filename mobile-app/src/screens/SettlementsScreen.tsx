@@ -15,6 +15,7 @@ export function SettlementsScreen() {
     error,
     fetchNextPage,
     hasNextPage,
+    isFetching,
     isFetchingNextPage,
     isFetchNextPageError,
   } = useInfiniteQuery({
@@ -47,7 +48,7 @@ export function SettlementsScreen() {
         data={items}
         keyExtractor={(s) => s.id}
         onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
+          if (hasNextPage && !isFetching) {
             void fetchNextPage();
           }
         }}

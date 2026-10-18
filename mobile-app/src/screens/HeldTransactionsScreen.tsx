@@ -19,6 +19,7 @@ export function HeldTransactionsScreen() {
     error,
     fetchNextPage,
     hasNextPage,
+    isFetching,
     isFetchingNextPage,
     isFetchNextPageError,
   } = useInfiniteQuery({
@@ -66,7 +67,7 @@ export function HeldTransactionsScreen() {
         data={items}
         keyExtractor={(t) => t.id}
         onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
+          if (hasNextPage && !isFetching) {
             void fetchNextPage();
           }
         }}

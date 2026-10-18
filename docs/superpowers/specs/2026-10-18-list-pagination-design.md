@@ -96,7 +96,8 @@ trong cùng thay đổi (§5). Chưa có client bên ngoài.
   ```
 
   `FlatList` nhận `data.pages.flatMap((p) => p.items)`; `onEndReached` gọi
-  `fetchNextPage()` chỉ khi `hasNextPage && !isFetchingNextPage`.
+  `fetchNextPage()` chỉ khi `hasNextPage && !isFetching` — `fetchNextPage` mặc định
+  huỷ refetch đang chạy (react-query v5), nên không được gọi trong lúc refetch sau approve/reject.
 - Footer danh sách: `"Loading more…"` khi đang tải trang tiếp; `"Failed to load
   more."` khi trang tiếp lỗi — giữ nguyên các dòng đã có, lần `onEndReached`
   sau thử lại.
