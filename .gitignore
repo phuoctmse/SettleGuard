@@ -91,3 +91,6 @@ coverage.out
 
 # --- ZAP scan output ---
 tests/security/zap/out/
+
+# --- Playwright E2E web build ---
+.e2e-web/
