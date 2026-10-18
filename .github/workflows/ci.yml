@@ -165,3 +165,67 @@ jobs:
           name: security-service-logs
           path: e2e-logs/
           if-no-files-found: warn
+
+  e2e-web:
+    name: e2e-web (Playwright on the web build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NATS_URL: nats://localhost:4222
+      LOG_DIR: ${{ github.workspace }}/e2e-logs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/start-stack
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - name: Build the web app against the gateway
+        working-directory: mobile-app
+        env:
+          EXPO_PUBLIC_ACCOUNTS_API_URL: http://localhost:8000/accounts
+          EXPO_PUBLIC_LEDGER_API_URL: http://localhost:8000/ledger
+          EXPO_PUBLIC_SETTLEMENT_API_URL: http://localhost:8000/settlement
+          EXPO_PUBLIC_NOTIFICATION_API_URL: http://localhost:8000/notifications
+        run: |
+          npm ci
+          npx expo export --platform web --output-dir "$RUNNER_TEMP/web"
+      - name: Serve the web app on :8090
+        run: |
+          mkdir -p "$LOG_DIR"
+          nohup python -m http.server 8090 -d "$RUNNER_TEMP/web" > "$LOG_DIR/web.log" 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:8090/ && exit 0
+            sleep 1
+          done
+          echo "web app never served"; exit 1
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: pytest tests/e2e
+        working-directory: tests
+        run: >
+          python -m pytest e2e -v --browser chromium
+          --tracing retain-on-failure --video retain-on-failure --screenshot only-on-failure
+          --output test-results --html=e2e-report.html --self-contained-html
+      - name: Upload E2E report, traces and videos
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-web-report
+          path: |
+            tests/e2e-report.html
+            tests/test-results/
+          if-no-files-found: warn
+      - name: Collect infra logs
+        if: failure()
+        run: |
+          mkdir -p "$LOG_DIR"
+          docker compose -f infra/docker/docker-compose.yml logs --no-color > "$LOG_DIR/docker-compose.log" 2>&1 || true
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-web-service-logs
+          path: e2e-logs/
+          if-no-files-found: warn

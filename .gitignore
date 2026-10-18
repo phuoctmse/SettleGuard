@@ -94,3 +94,5 @@ tests/security/zap/out/
 
 # --- Playwright E2E web build ---
 .e2e-web/
+tests/test-results/
+tests/e2e-report.html
