@@ -444,7 +444,7 @@ def test_settlement_containing_the_transaction_is_listed(page: Page, held_tx, se
     assert resp.status_code == 200, resp.text
 
     def find_settlement():
-        for s in settlement.list_settlements().json():
+        for s in settlement.list_settlements().json()["items"]:  # newest first, first page (50)
             if tx_id in s["transaction_ids"]:
                 return s["id"]
         return None
