@@ -6,6 +6,10 @@ import * as settlementApi from '../api/settlement';
 
 jest.mock('../api/settlement');
 
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
 function renderWithQuery(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -139,4 +143,40 @@ it('only disables the row being approved, not other rows, while the mutation is 
 
   resolveApprove!();
   await findByText('Amount: 200 · Score: 0.5'); // wait for the invalidate/refetch cycle to settle before the test ends
+});
+
+it('exposes per-row testIDs and approves/rejects the right row by id', async () => {
+  (settlementApi.listHeldTransactions as jest.Mock).mockResolvedValue([
+    {
+      id: 'txn-1',
+      amount: 500,
+      score: 0.9,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
+    {
+      id: 'txn-2',
+      amount: 200,
+      score: 0.5,
+      decision: 'hold',
+      status: 'held',
+      triggered_rules: [],
+      scored_at: '',
+    },
+  ]);
+  (settlementApi.approveTransaction as jest.Mock).mockResolvedValue(undefined);
+  (settlementApi.rejectTransaction as jest.Mock).mockResolvedValue(undefined);
+
+  const { findByTestId, getByTestId } = await renderWithQuery(<HeldTransactionsScreen />);
+
+  expect(await findByTestId('held-tx-txn-1')).toBeTruthy();
+  expect(getByTestId('held-tx-txn-2')).toBeTruthy();
+
+  await fireEvent.press(getByTestId('approve-txn-2'));
+  expect((settlementApi.approveTransaction as jest.Mock).mock.calls[0][0]).toBe('txn-2');
+
+  await fireEvent.press(getByTestId('reject-txn-1'));
+  expect((settlementApi.rejectTransaction as jest.Mock).mock.calls[0][0]).toBe('txn-1');
 });

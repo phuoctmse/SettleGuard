@@ -61,7 +61,7 @@ export function HeldTransactionsScreen() {
           const approving = approve.variables === item.id && approve.isPending;
           const rejecting = reject.variables === item.id && reject.isPending;
           return (
-            <Card>
+            <Card testID={`held-tx-${item.id}`}>
               <View style={styles.rowTop}>
                 <Text style={[typography.body, { color: colors.textPrimary }]}>
                   Amount: {item.amount} · Score: {item.score}
@@ -73,11 +73,13 @@ export function HeldTransactionsScreen() {
               </Text>
               <View style={styles.actions}>
                 <Button
+                  testID={`approve-${item.id}`}
                   title={approving ? 'Approving…' : 'Approve'}
                   disabled={approving}
                   onPress={() => approve.mutate(item.id)}
                 />
                 <Button
+                  testID={`reject-${item.id}`}
                   title={rejecting ? 'Rejecting…' : 'Reject'}
                   disabled={rejecting}
                   variant="secondary"

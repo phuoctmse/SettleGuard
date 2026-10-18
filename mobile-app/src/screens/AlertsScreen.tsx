@@ -36,7 +36,7 @@ export function AlertsScreen() {
         data={data}
         keyExtractor={(n) => n.id}
         renderItem={({ item }) => (
-          <Card>
+          <Card testID={`alert-card-${item.id}`}>
             <View style={styles.rowTop}>
               <Text style={[typography.body, { color: colors.textPrimary }]}>
                 {item.type} · {item.subject_id}

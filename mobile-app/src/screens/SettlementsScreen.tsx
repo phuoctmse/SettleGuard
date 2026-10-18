@@ -34,7 +34,7 @@ export function SettlementsScreen() {
         data={data}
         keyExtractor={(s) => s.id}
         renderItem={({ item }) => (
-          <Card>
+          <Card testID={`settlement-card-${item.id}`}>
             <Text style={[typography.body, { color: colors.textPrimary }]}>
               Transactions: {item.transaction_count} · Total: {item.total_amount}
             </Text>
