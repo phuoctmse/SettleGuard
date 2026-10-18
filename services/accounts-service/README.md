@@ -13,7 +13,7 @@ enabled (`docker compose -f infra/docker/docker-compose.yml up -d
 accounts-postgres nats`).
 
 ```bash
-export DATABASE_URL="postgres://accounts:accounts@localhost:5432/accounts?sslmode=disable"
+export DATABASE_URL="postgres://accounts:accounts@localhost:5434/accounts?sslmode=disable"
 export NATS_URL="nats://localhost:4222"
 go run ./cmd/server
 ```

@@ -115,6 +115,7 @@ func (h *Handlers) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	var req createTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
 	}
 
 	entries := make([]ledger.Entry, 0, len(req.Entries))
@@ -138,7 +139,9 @@ func (h *Handlers) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ledger.ErrUnbalancedTransaction),
 			errors.Is(err, ledger.ErrInvalidAmount),
 			errors.Is(err, ledger.ErrInvalidDirection),
-			errors.Is(err, ledger.ErrNoEntries):
+			errors.Is(err, ledger.ErrNoEntries),
+			errors.Is(err, ledger.ErrAmountTooLarge),
+			errors.Is(err, ledger.ErrTooManyEntries):
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, "internal error")

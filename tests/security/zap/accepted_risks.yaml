@@ -1,0 +1,8 @@
+# High-risk ZAP alerts deliberately accepted. Each entry MUST name the
+# finding in docs/security/PENTEST_REPORT.md that explains it; check_report.py
+# rejects an entry missing plugin_id, finding_id or reason.
+#
+# - plugin_id: "40018"
+#   finding_id: SG-PT-NN
+#   reason: why this is accepted rather than fixed
+accepted: []

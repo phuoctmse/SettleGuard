@@ -1,0 +1,17 @@
+export const colors = {
+  backgroundGradient: ['#FFF3EC', '#FFE4D6'] as const,
+  surface: 'rgba(255,255,255,0.55)',
+  surfaceSolid: '#FFFFFF',
+  textPrimary: '#2B1A12',
+  textSecondary: 'rgba(43,26,18,0.6)',
+  accent: '#E8541F',
+  accentMuted: 'rgba(232,84,31,0.14)',
+  success: '#1A9E5C',
+  successMuted: 'rgba(26,158,92,0.14)',
+  danger: '#D13B3B',
+  dangerMuted: 'rgba(209,59,59,0.14)',
+  warning: '#C8420F',
+  warningMuted: 'rgba(232,84,31,0.14)',
+  neutral: '#8A7364',
+  neutralMuted: 'rgba(138,115,100,0.14)',
+} as const;

@@ -2,6 +2,7 @@ package ledgerevent
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,11 +38,23 @@ type OutboxPayloadEntry struct {
 func BalanceDeltas(entries []OutboxPayloadEntry) (map[uuid.UUID]int64, error) {
 	deltas := make(map[uuid.UUID]int64, len(entries))
 	for _, e := range entries {
+		// A non-positive amount would silently invert the direction's
+		// meaning; the ledger never emits one, so treat it as malformed.
+		if e.Amount <= 0 {
+			return nil, fmt.Errorf("ledgerevent: entry amount %d is not positive", e.Amount)
+		}
+		cur := deltas[e.AccountID]
 		switch e.Direction {
 		case "credit":
-			deltas[e.AccountID] += e.Amount
+			if cur > math.MaxInt64-e.Amount {
+				return nil, fmt.Errorf("ledgerevent: balance delta for account %s overflows int64", e.AccountID)
+			}
+			deltas[e.AccountID] = cur + e.Amount
 		case "debit":
-			deltas[e.AccountID] -= e.Amount
+			if cur < math.MinInt64+e.Amount {
+				return nil, fmt.Errorf("ledgerevent: balance delta for account %s overflows int64", e.AccountID)
+			}
+			deltas[e.AccountID] = cur - e.Amount
 		default:
 			return nil, fmt.Errorf("ledgerevent: unrecognized entry direction %q", e.Direction)
 		}

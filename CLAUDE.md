@@ -4,12 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`services/ledger-service`, `services/accounts-service`, and
-`services/settlement-engine` have working MVPs (see each service's
-README.md for build/lint/test/run commands). The remaining service
-(`notification-service`) and `mobile-app` are still scaffolds with no
-code. As each is implemented, add its build/lint/test commands to this
-file rather than assuming conventions from the stack.
+All services and mobile-app have working MVPs:
+
+- **`services/ledger-service`** (Go, Postgres) — append-only ledger. Build:
+  `go build ./...`, Lint: `go vet ./...`, Test: `go test ./...`.
+- **`services/accounts-service`** (Go, Postgres) — account identity and
+  balance tracking. Build: `go build ./...`, Lint: `golangci-lint run ./...`,
+  Test: `go test ./...`.
+- **`services/settlement-engine`** (Go, Postgres) — transaction risk scoring
+  and settlement batching. Build: `go build ./...`, Lint:
+  `golangci-lint run ./...`, Test: `go test ./...`.
+- **`services/notification-service`** (Python) — event consumer for risk
+  holds and settlements. Test: `pytest`.
+- **`services/gateway`** (Go, Postgres) — reverse proxy in front of the four
+  services: CORS, API-key auth, rate limiting, request ids. Build:
+  `go build ./...`, Lint: `golangci-lint run ./...`, Test:
+  `go test -count=1 -p 1 ./...`. Keys are issued with `cmd/adminctl`.
+- **`mobile-app`** (Expo/TypeScript) — read-oriented client for all backend
+  services, with approve/reject actions on held transactions. Run:
+  `npx expo start`, Test: `npm test`.
+
+See each service's README.md for more detail.
 
 ## What SettleGuard Is
 
@@ -64,6 +79,35 @@ exists yet.
 - **`mobile-app`** (React Native) — read-oriented client for
   accounts/ledger/settlement-engine, receives push notifications from
   notification-service. Never a source of truth for domain data.
+
+Auth: **API key for client businesses, JWT for mobile/ops users, both
+verified at a gateway** (decided 2026-09-09; the API-key half is
+implemented in services/gateway, the JWT half is not). The two
+caller classes are genuinely different: a client business integrates
+server-to-server and gets a hashed API key stored against its
+`ClientBusiness` row, while a human on `mobile-app` needs a login session,
+so a short-lived JWT. A single shared API key was rejected because a key
+shipped inside a mobile bundle is extractable, and because approve/reject
+on a held transaction is a human decision that must be attributable to a
+person — one shared key erases that audit trail. Verification belongs at
+the gateway (now built in `services/gateway`) so the four backend services stay
+unchanged and auth is implemented once rather than four times across three
+separate Go modules and one Python service.
+
+Until the gateway is deployed in front of them, **the four backend
+services themselves have no authentication** — `POST /transactions` and
+every other endpoint are open on ports 8080–8083. The gateway closes this
+only for traffic that actually goes through it: `AUTH-01`–`AUTH-03` in
+`docs/BUSINESS_RULES.md` state what it guarantees and say plainly that the
+direct ports bypass all of it, and all five `docs/openapi/*.yaml` (the four
+services plus `gateway.yaml`) now carry `securitySchemes`.
+
+The larger remaining gap is that **authentication is not authorization**: a
+valid key identifies the calling client business, but no service checks
+which accounts that client may touch, so any valid key can post entries
+against any account and `GET /notifications` returns every client's rows.
+Ownership enforcement is an unbuilt spec, sequenced after CI —
+`docs/superpowers/specs/2026-09-10-gateway-design.md` §10.1 and §11.
 
 Key domain entities shared across services: Account, LedgerEntry,
 Transaction, RiskScore, Settlement (batch), Alert/Notification.

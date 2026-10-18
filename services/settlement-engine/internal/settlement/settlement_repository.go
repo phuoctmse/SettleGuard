@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,12 @@ const EventSettlementFinalized = "settlement.finalized"
 // ErrSettlementNotFound is returned by Get when the settlement id doesn't
 // exist.
 var ErrSettlementNotFound = errors.New("settlement not found")
+
+// ErrBatchTotalOverflow is returned by RunBatch when the pending
+// transactions' amounts cannot be summed without wrapping int64. The batch
+// is left untouched for a human to look at; a wrapped total must never be
+// persisted as a settlement.
+var ErrBatchTotalOverflow = errors.New("settlement: batch total overflows int64")
 
 // Settlement is one batch of transactions grouped for payout.
 type Settlement struct {
@@ -95,6 +102,13 @@ func (r *SettlementRepository) RunBatch(ctx context.Context) (*Settlement, error
 			return nil, fmt.Errorf("scan pending transaction: %w", err)
 		}
 		ids = append(ids, id)
+		// Guarded, not just CHECK'd: two MaxInt64 amounts wrap negative and
+		// the settlements.total_amount > 0 constraint catches that, but three
+		// wrap back to a large positive that the constraint accepts.
+		if totalAmount > math.MaxInt64-amount {
+			rows.Close()
+			return nil, ErrBatchTotalOverflow
+		}
 		totalAmount += amount
 	}
 	if err := rows.Err(); err != nil {
