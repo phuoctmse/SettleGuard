@@ -39,7 +39,10 @@ export function AccountListScreen({ navigation, route }: Props) {
         data={data}
         keyExtractor={(a) => a.id}
         renderItem={({ item }) => (
-          <Card onPress={() => navigation.navigate('AccountDetail', { accountId: item.id })}>
+          <Card
+            testID={`account-card-${item.id}`}
+            onPress={() => navigation.navigate('AccountDetail', { accountId: item.id })}
+          >
             <Text style={[typography.body, { color: colors.textPrimary }]}>
               {item.external_ref ?? item.id}
             </Text>

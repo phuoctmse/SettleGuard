@@ -15,3 +15,12 @@ it('does not call onPress when disabled', async () => {
   await fireEvent.press(getByText('Approve'));
   expect(onPress).not.toHaveBeenCalled();
 });
+
+it('forwards testID so the button can be found and pressed by id', async () => {
+  const onPress = jest.fn();
+  const { getByTestId } = await render(
+    <Button title="Approve" onPress={onPress} testID="approve-txn-1" />,
+  );
+  await fireEvent.press(getByTestId('approve-txn-1'));
+  expect(onPress).toHaveBeenCalledTimes(1);
+});

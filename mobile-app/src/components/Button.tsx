@@ -7,12 +7,14 @@ interface Props {
   onPress: () => void;
   disabled?: boolean;
   variant?: 'primary' | 'secondary';
+  testID?: string;
 }
 
-export function Button({ title, onPress, disabled, variant = 'primary' }: Props) {
+export function Button({ title, onPress, disabled, variant = 'primary', testID }: Props) {
   const isPrimary = variant === 'primary';
   return (
     <Pressable
+      testID={testID}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}

@@ -35,3 +35,19 @@ it('shows a failure message when listSettlements errors', async () => {
 
   expect(await findByText('Failed to load settlements.')).toBeTruthy();
 });
+
+it('gives each settlement card a testID carrying the settlement id', async () => {
+  (settlementApi.listSettlements as jest.Mock).mockResolvedValue([
+    {
+      id: 'settle-1',
+      transaction_ids: ['txn-1', 'txn-2'],
+      transaction_count: 2,
+      total_amount: 1500,
+      created_at: '2026-08-20T00:00:00Z',
+    },
+  ]);
+
+  const { findByTestId } = await renderWithQuery(<SettlementsScreen />);
+
+  expect(await findByTestId('settlement-card-settle-1')).toBeTruthy();
+});

@@ -63,3 +63,19 @@ it('polls for new notifications every 15 seconds', async () => {
     expect(notificationsApi.listNotifications).toHaveBeenCalledTimes(count);
   }
 });
+
+it('gives each alert card a testID carrying the notification id', async () => {
+  (notificationsApi.listNotifications as jest.Mock).mockResolvedValue([
+    {
+      id: 'notif-1',
+      type: 'risk_hold',
+      subject_id: 'txn-1',
+      payload: {},
+      created_at: '2026-08-20T00:00:00Z',
+    },
+  ]);
+
+  const { findByTestId } = await renderWithQuery(<AlertsScreen />);
+
+  expect(await findByTestId('alert-card-notif-1')).toBeTruthy();
+});
