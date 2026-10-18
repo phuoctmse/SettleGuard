@@ -135,6 +135,24 @@ func TestListSettlements_MostRecentFirst(t *testing.T) {
 	assert.Equal(t, first.ID, list[1].ID)
 }
 
+func TestListSettlements_IncludesTransactionIDs(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := settlement.NewSettlementRepository(db)
+
+	tx1, tx2 := uuid.New(), uuid.New()
+	insertTransactionWithStatus(t, db, tx1, 1_000, settlement.StatusPendingSettlement)
+	insertTransactionWithStatus(t, db, tx2, 2_000, settlement.StatusPendingSettlement)
+	batch, err := repo.RunBatch(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, batch)
+
+	list, err := repo.List(context.Background())
+
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.ElementsMatch(t, []uuid.UUID{tx1, tx2}, list[0].TransactionIDs)
+}
+
 // Three pending transactions of MaxInt64 sum, modulo 2^64, to 2^63-3: a
 // positive number that passes the settlements.total_amount > 0 CHECK and
 // would be persisted as the batch total. Two would wrap negative and be

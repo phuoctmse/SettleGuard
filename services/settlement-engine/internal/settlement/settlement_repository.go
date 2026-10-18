@@ -208,7 +208,21 @@ func (r *SettlementRepository) List(ctx context.Context) ([]Settlement, error) {
 		}
 		out = append(out, s)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// Close before the per-settlement queries so each one can take this
+	// connection back instead of opening another while rows is held.
+	rows.Close()
+
+	for i := range out {
+		ids, err := r.transactionIDsFor(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].TransactionIDs = ids
+	}
+	return out, nil
 }
 
 // transactionIDsFor's per-settlement query (rather than a join) is
