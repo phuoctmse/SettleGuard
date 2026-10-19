@@ -49,7 +49,9 @@
       "PowerShell(git commit --amend*)",
       "PowerShell(terraform apply*)",
       "PowerShell(kubectl apply*)",
-      "PowerShell(kubectl delete*)"
+      "PowerShell(kubectl delete*)",
+      "Edit(/infra/**)",
+      "Edit(/.github/workflows/**)"
     ],
     "deny": [
       "Read(.env)",
@@ -59,7 +61,116 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(secrets/**)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Bash(yarn*)",
+      "Bash(pnpm*)",
+      "Bash(bun *)",
+      "Bash(bunx *)",
+      "Bash(poetry*)",
+      "Bash(pipenv*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push *--force*)",
+      "Bash(git push * -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git reset * --hard*)",
+      "Bash(git checkout main)",
+      "Bash(git checkout master)",
+      "Bash(git switch main)",
+      "Bash(git switch master)",
+      "Bash(git branch -D*)",
+      "Bash(git branch -d *)",
+      "Bash(git branch --delete*)",
+      "Bash(git push *--delete*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean -*f*)",
+      "Bash(dropdb*)",
+      "Bash(rtk yarn*)",
+      "Bash(rtk pnpm*)",
+      "Bash(rtk bun *)",
+      "Bash(rtk bunx *)",
+      "Bash(rtk poetry*)",
+      "Bash(rtk pipenv*)",
+      "Bash(rtk git push --force*)",
+      "Bash(rtk git push -f*)",
+      "Bash(rtk git push *--force*)",
+      "Bash(rtk git push * -f*)",
+      "Bash(rtk git reset --hard*)",
+      "Bash(rtk git reset * --hard*)",
+      "Bash(rtk git checkout main)",
+      "Bash(rtk git checkout master)",
+      "Bash(rtk git switch main)",
+      "Bash(rtk git switch master)",
+      "Bash(rtk git branch -D*)",
+      "Bash(rtk git branch -d *)",
+      "Bash(rtk git branch --delete*)",
+      "Bash(rtk git push *--delete*)",
+      "Bash(rtk git clean -f*)",
+      "Bash(rtk git clean -*f*)",
+      "Bash(rtk dropdb*)",
+      "PowerShell(yarn*)",
+      "PowerShell(pnpm*)",
+      "PowerShell(bun *)",
+      "PowerShell(bunx *)",
+      "PowerShell(poetry*)",
+      "PowerShell(pipenv*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(git push *--force*)",
+      "PowerShell(git push * -f*)",
+      "PowerShell(git reset --hard*)",
+      "PowerShell(git reset * --hard*)",
+      "PowerShell(git checkout main)",
+      "PowerShell(git checkout master)",
+      "PowerShell(git switch main)",
+      "PowerShell(git switch master)",
+      "PowerShell(git branch -D*)",
+      "PowerShell(git branch -d *)",
+      "PowerShell(git branch --delete*)",
+      "PowerShell(git push *--delete*)",
+      "PowerShell(git clean -f*)",
+      "PowerShell(git clean -*f*)",
+      "PowerShell(dropdb*)",
+      "Edit(**/.env)",
+      "Edit(**/package-lock.json)",
+      "Edit(**/go.sum)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_verify.py\" mark",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_verify.py\" check",
+            "timeout": 900,
+            "statusMessage": "Verifying touched code: lint + unit tests"
+          }
+        ]
+      }
     ]
   }
 }
