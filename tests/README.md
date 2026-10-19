@@ -25,6 +25,8 @@ themselves; this suite tests the system from the outside).
   `tests/security/README.md` and `docs/security/PENTEST_REPORT.md`.
 - `tests/perf` — a Locust file load-testing the real-time transaction
   scoring path via `POST /transactions` on ledger-service.
+- `tests/e2e` — Python Playwright E2E against the `mobile-app` web build,
+  through the gateway — see `tests/e2e/README.md`.
 
 **Explicitly deferred (not in this suite, not accidentally skipped):**
 
@@ -36,9 +38,9 @@ themselves; this suite tests the system from the outside).
   The other is now partly met: CI exists in `.github/workflows`, but
   there is no history of CI failures yet to triage. Large enough to be
   its own plan.
-- **Mobile Appium E2E** — waiting on `mobile-app` screens getting
-  `testID`/`accessibilityLabel` attributes, which is `mobile-app`'s own
-  work, not `tests/`.
+- **Mobile Appium E2E** — `testID`s now exist (`mobile-app/README.md`), so
+  this is no longer blocked — just not written yet. On Android, Appium
+  locates them by `id` (`resource-id`), on iOS by `accessibility id`.
 
 See `docs/superpowers/specs/2026-08-24-testing-suite-design.md` §8 ("Để
 lại cho việc khác") for the full rationale behind each of these.
@@ -52,6 +54,7 @@ request to point Locust at).
 
 - Docker (for Postgres + NATS)
 - Go (to run `ledger-service`, `accounts-service`, `settlement-engine`)
+- Node 24 + npm (to build the web app) and Chromium via `python -m playwright install chromium`
 - Docker also runs OWASP ZAP for the pentest scan (`tests/security/zap/run_zap.sh`)
 - Python 3.11+ with a virtualenv of your choice
 
@@ -149,9 +152,9 @@ pointing back here.
 
 ## Running the suites
 
-In CI (`.github/workflows/ci.yml`) `tests/api` runs in the `e2e-api` job
-and `tests/security` in the `security` job; both start the stack with
-`.github/actions/start-stack`.
+In CI (`.github/workflows/ci.yml`) `tests/api` runs in the `e2e-api` job,
+`tests/security` in the `security` job, and `tests/e2e` in the `e2e-web`
+job; all three start the stack with `.github/actions/start-stack`.
 
 From the repo root (or from `tests/` — `tests/pyproject.toml` sets
 `testpaths = ["api", "security"]` and `pythonpath = ["api"]` so
