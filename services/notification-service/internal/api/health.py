@@ -38,11 +38,16 @@ class _Handler(BaseHTTPRequestHandler):
                 self._write(400, b'{"error":"invalid since"}')
                 return
 
+        # Below 1 is rejected, not clamped: a negative LIMIT reaching Postgres
+        # used to take /notifications down for every client (SG-PT-07).
         try:
-            limit = min(int(limit_raw), MAX_LIMIT)
+            limit = int(limit_raw)
         except ValueError:
+            limit = 0
+        if limit < 1:
             self._write(400, b'{"error":"invalid limit"}')
             return
+        limit = min(limit, MAX_LIMIT)
 
         notifications = self.server.repo.list(type_=type_, since=since, limit=limit)
         self._write(200, json.dumps(notifications).encode())

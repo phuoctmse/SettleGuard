@@ -20,6 +20,9 @@ import (
 // Logger and RecoverJSON sit between RequestID and CORS, matching the other
 // services' routers: both need the request id, and a panic anywhere after
 // them must still answer with the §8 error body rather than an empty 500.
+// SecurityHeaders follows them so every response carries the headers, and
+// LimitRequestBody sits just before Proxy, after auth, so an unauthenticated
+// caller gets the same 401 whatever it sends (pentest SG-PT-08/09).
 // CORS sits before auth because a browser preflight carries no key.
 // /health is the only route outside the authenticated group.
 func NewRouter(cfg Config, keys KeyLookup) (http.Handler, error) {
@@ -42,6 +45,7 @@ func NewRouter(cfg Config, keys KeyLookup) (http.Handler, error) {
 	r.Use(RequestID)
 	r.Use(middleware.Logger)
 	r.Use(RecoverJSON)
+	r.Use(SecurityHeaders)
 	// go-chi/cors treats an EMPTY AllowedOrigins list as "allow every
 	// origin" -- the exact opposite of the fail-closed behaviour the spec
 	// requires. Deciding through AllowOriginFunc instead keeps the decision
@@ -77,6 +81,7 @@ func NewRouter(cfg Config, keys KeyLookup) (http.Handler, error) {
 	r.Group(func(r chi.Router) {
 		r.Use(APIKeyAuth(keys))
 		r.Use(RateLimitByClient(clientLimiter))
+		r.Use(LimitRequestBody(MaxRequestBodyBytes))
 		for prefix, u := range parsed {
 			r.Mount(prefix, http.StripPrefix(prefix, proxy.New(u, cfg.UpstreamTimeout)))
 		}

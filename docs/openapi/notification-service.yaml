@@ -54,10 +54,13 @@ paths:
             format: date-time
         - name: limit
           in: query
-          description: The maximum number of notifications to return. Maximum allowed is 200, default is 50.
+          description: >-
+            The maximum number of notifications to return. Default is 50; a
+            value above 200 is clamped to 200, and a value below 1 is a `400`.
           schema:
             type: integer
             default: 50
+            minimum: 1
             maximum: 200
       responses:
         '200':

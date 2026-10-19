@@ -77,6 +77,41 @@ func TestProxy_UnreachableUpstreamIs502(t *testing.T) {
 	assert.Equal(t, "upstream unavailable", body["error"])
 }
 
+// SG-PT-09: an upstream's Server header (notification-service sends its
+// Python version) must not reach the caller.
+func TestProxy_StripsUpstreamServerHeader(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Server", "BaseHTTP/0.6 Python/3.12.0")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(up.Close)
+	h := proxy.New(mustURL(t, up.URL), time.Second)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/notifications", nil))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Empty(t, rec.Header().Get("Server"))
+}
+
+// SG-PT-08: a body that passes the up-front Content-Length check but then
+// overruns http.MaxBytesReader mid-stream is a 413, not an upstream 502.
+func TestProxy_BodyOverMaxBytesIs413(t *testing.T) {
+	up := echoUpstream(t, http.StatusCreated)
+	h := proxy.New(mustURL(t, up.URL), time.Second)
+
+	req := httptest.NewRequest(http.MethodPost, "/clients", strings.NewReader(strings.Repeat("x", 64)))
+	req.ContentLength = -1
+	rec := httptest.NewRecorder()
+	req.Body = http.MaxBytesReader(rec, req.Body, 10)
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+	var body map[string]string
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	assert.Equal(t, "request body too large", body["error"])
+}
+
 func TestProxy_SlowUpstreamIs504(t *testing.T) {
 	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(400 * time.Millisecond)

@@ -39,9 +39,16 @@ class NotificationRepository:
         query += " ORDER BY created_at DESC LIMIT %s"
         params.append(limit)
 
-        with self._conn.cursor() as cur:
-            cur.execute(query, params)
-            rows = cur.fetchall()
+        # The connection is shared and not autocommit: without the rollback a
+        # failed query leaves it in an aborted transaction and every later
+        # call fails until a restart (SG-PT-07).
+        try:
+            with self._conn.cursor() as cur:
+                cur.execute(query, params)
+                rows = cur.fetchall()
+        except Exception:
+            self._conn.rollback()
+            raise
 
         return [
             {

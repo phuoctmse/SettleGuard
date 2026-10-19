@@ -40,7 +40,7 @@ này là bằng chứng rằng active scan đã chạy.
 ### `xfail` là finding, không phải lỗi test
 
 Mỗi lỗ hổng là một test `xfail(strict=True, reason="SG-PT-NN: ...")` khẳng
-định hành vi **an toàn**. Các finding SG-PT-01/02/03/06/08 dùng
+định hành vi **an toàn**. Các finding còn mở (SG-PT-01/02/03/06) dùng
 `xfail(strict=True, raises=AssertionError)`: chỉ một assertion thất bại mới
 tính là XFAIL; điều kiện tiên quyết hỏng sẽ gọi `pytest.fail` và làm suite đỏ.
 Khi lỗ hổng được sửa, test XPASS và `strict` làm suite đỏ. Lúc đó, gỡ marker
@@ -50,18 +50,19 @@ và cập nhật trạng thái finding trong báo cáo, trong cùng một PR.
 
 `test_negative_notification_limit_is_refused` được đánh dấu `destructive` và
 `tests/pyproject.toml` loại nó khỏi lần chạy mặc định (`-m "not destructive"`).
-Test này có thể khiến notification-service không phục vụ được `/notifications`
-nữa. Chỉ chạy nó **cuối cùng và riêng một mình**:
+SG-PT-07 đã được sửa, nên trên code hiện tại test này pass và không làm hỏng
+gì. Marker vẫn được giữ: nếu lỗi tái phát, test sẽ khiến notification-service
+không phục vụ được `/notifications` cho tới khi khởi động lại. Vì vậy vẫn chỉ
+chạy nó **cuối cùng và riêng một mình**:
 
     cd tests && python -m pytest security -m destructive
 
-Sau đó phải khởi động lại notification-service. Trong CI, nó chạy ở bước cuối
-của job `security`, sau ZAP.
+Trong CI, nó chạy ở bước cuối của job `security`, sau ZAP.
 
 ## Tác dụng phụ
 
-Suite ghi dữ liệu thật: ví dụ SG-PT-08 lưu một tên client dài 5 MiB, SG-PT-01/02
-tạo client và giao dịch ledger. Chỉ chạy trên stack local dùng một lần, **không
+Suite ghi dữ liệu thật: ví dụ SG-PT-01/02 tạo client và giao dịch ledger
+(trước khi SG-PT-08 được sửa, test của nó còn lưu một tên client dài 5 MiB). Chỉ chạy trên stack local dùng một lần, **không
 bao giờ** chạy trên môi trường dùng chung.
 
 ## Rate limit

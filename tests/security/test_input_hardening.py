@@ -127,19 +127,32 @@ def test_nul_byte_in_text_field_is_refused(gw):
 
 
 # OWASP API4:2023 Unrestricted Resource Consumption (unvalidated limit)
-# Destructive: one limit=-1 request leaves /notifications down until notification-service restarts.
+# SG-PT-07, fixed. Still destructive: if it regresses, one limit=-1 request
+# leaves /notifications down until notification-service restarts.
 @pytest.mark.destructive
-@pytest.mark.xfail(strict=True, reason="SG-PT-07: negative ?limit= on /notifications is not validated; the upstream drops the connection and /notifications stays unavailable until notification-service restarts")
 def test_negative_notification_limit_is_refused(gw):
     http, *_ = gw
     resp = http.get("/notifications/notifications", params={"limit": "-1"})
     _assert_refused_cleanly(resp)
     assert resp.status_code == 400
+    # The refused request must not have broken the service for the next caller.
+    assert http.get("/notifications/notifications", params={"limit": "1"}).status_code == 200
 
 
-# OWASP API4:2023 Unrestricted Resource Consumption (no body size limit)
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="SG-PT-08: no request body size limit on any service")
+# OWASP API4:2023 Unrestricted Resource Consumption (body size limit, SG-PT-08, fixed)
 def test_oversized_body_is_refused(gw):
     http, *_ = gw
     resp = http.post("/accounts/clients", json={"name": "x" * (5 * 1024 * 1024)})
-    assert resp.status_code in (400, 413)
+    _assert_refused_cleanly(resp)
+    assert resp.status_code == 413
+
+
+# OWASP API8:2023 Security Misconfiguration (response headers, SG-PT-09, fixed)
+def test_security_headers_and_no_server_version(gw):
+    http, *_ = gw
+    # One path per upstream, plus a gateway-originated 404.
+    for path in ["/ledger/health", "/accounts/health", "/settlement/health", "/notifications/health", "/nope"]:
+        resp = http.get(path)
+        assert resp.headers.get("x-content-type-options") == "nosniff", path
+        assert resp.headers.get("cross-origin-resource-policy") == "same-origin", path
+        assert "server" not in resp.headers, f"{path}: Server: {resp.headers.get('server')}"
