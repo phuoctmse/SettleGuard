@@ -1,207 +1,134 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+SettleGuard: a B2B platform that tracks and settles financial obligations
+between parties on top of external payment rails (it never moves real money),
+guarding settlement with rule-based + ML risk scoring. v1 excludes moving
+funds directly, multi-currency/FX, and on-prem. Charter:
+`docs/PROJECT_CHARTER.md`; domain rules: `docs/BUSINESS_RULES.md` (money is
+VND dong, MONEY-01); API contracts: `docs/openapi/*.yaml`; designs:
+`docs/superpowers/specs/`.
 
-## Project Status
+## Commands
 
-All services and mobile-app have working MVPs:
+Each module builds from its own directory; there is no root build.
+Package managers: **npm** (`mobile-app`, `package-lock.json`), **pip + venv**
+(`requirements.txt`), **Go modules**. Other managers are blocked by the harness.
 
-- **`services/ledger-service`** (Go, Postgres) — append-only ledger. Build:
-  `go build ./...`, Lint: `go vet ./...`, Test: `go test ./...`.
-- **`services/accounts-service`** (Go, Postgres) — account identity and
-  balance tracking. Build: `go build ./...`, Lint: `golangci-lint run ./...`,
-  Test: `go test ./...`.
-- **`services/settlement-engine`** (Go, Postgres) — transaction risk scoring
-  and settlement batching. Build: `go build ./...`, Lint:
-  `golangci-lint run ./...`, Test: `go test ./...`.
-- **`services/notification-service`** (Python) — event consumer for risk
-  holds and settlements. Test: `pytest`.
-- **`services/gateway`** (Go, Postgres) — reverse proxy in front of the four
-  services: CORS, API-key auth, rate limiting, request ids. Build:
-  `go build ./...`, Lint: `golangci-lint run ./...`, Test:
-  `go test -count=1 -p 1 ./...`. Keys are issued with `cmd/adminctl`.
-- **`mobile-app`** (Expo/TypeScript) — read-oriented client for all backend
-  services, with approve/reject actions on held transactions. Run:
-  `npx expo start`, Test: `npm test`.
+**Go** — `services/{ledger-service,accounts-service,settlement-engine,gateway}`
+- Build `go build ./...` · Lint `go vet ./...` then `golangci-lint run ./...`
+  (root `.golangci.yml`, v1 config; CI pins v1.64.8, built with `go install`).
+  gofmt/goimports are enforced by the linter.
+- Test `go test -count=1 -p 1 ./...`. Always `-p 1`: each package starts its
+  own Postgres/NATS testcontainers, and parallel packages fight over Docker.
+- Single test: `go test -count=1 -run '^TestName$' ./internal/<pkg>`
 
-See each service's README.md for more detail.
+**notification-service** (Python, venv at `.venv`)
+- Test `.venv/Scripts/python -m pytest` (needs Docker and the `migrate` CLI).
+- Single test: `.venv/Scripts/python -m pytest internal/consumer/consumer_test.py::test_name`
+  (tests are `*_test.py` beside the code). No linter is configured.
 
-## What SettleGuard Is
+**mobile-app** (Expo/TypeScript)
+- `npm ci` · Lint `npm run lint` · Format check `npm run format:check`
+  (fix: `npm run format`) · Test `npm test` · Run `npm start` (port 8090).
+- Single test: `npx jest src/components/Button.test.tsx` (add `-t 'name'`).
 
-SettleGuard is a B2B platform that tracks and settles financial obligations
-between parties on top of external payment rails (it never moves real money
-itself), while guarding the settlement process with rule-based and ML-based
-risk scoring. Client businesses integrate via API to settle payments/payouts
-between their own users; SettleGuard's own mobile app lets end-users (or the
-client's ops team) track settlement status and see fraud/risk alerts in real
-time.
+**tests/** (Python, venv at `tests/.venv`) — black-box suites against a live
+local stack (`infra/docker/docker-compose.yml` + the services): `api`,
+`security` (+ ZAP), `perf` (Locust), `e2e` (Playwright on the web build).
+Setup and env vars: `tests/README.md`, `tests/e2e/README.md`.
+- Single test: `.venv/Scripts/python -m pytest api/test_ledger_contract.py::test_name`
 
-v1 explicitly does not: move real funds directly (that's delegated to an
-external payment processor), support multi-currency/FX, or support
-on-premise deployment.
+## Editing scope
 
-Full charter: `docs/PROJECT_CHARTER.md`. Full architecture/domain-model design:
-`docs/superpowers/specs/2026-07-29-project-charter-design.md`.
+- Change only the files the task names or directly needs. Modules that are
+  working stay exactly as they are: refactors, renames and drive-by cleanups
+  are separate tasks, proposed first.
+- Simplicity over cleverness: add an interface, generic or layer only when a
+  concrete second use case exists.
+- Explain key design decisions (the why, e.g. the isolation level a
+  double-entry write needs) before implementing, then code, run the tests and
+  report the results.
+
+## Protected files
+
+- **Migrations** `services/*/internal/db/migrations/*.sql` are append-only.
+  One on `origin/main` has already run against real databases: change the
+  schema by adding the next numbered `NNNNNN_<name>.up.sql` + `.down.sql`
+  pair. Every schema/data change goes through a migration, never ad-hoc
+  DDL/DML via `psql` or `docker exec`.
+- **Lockfiles** `mobile-app/package-lock.json`, `services/*/go.sum`: change
+  only via the tool (`npm install <pkg>`, `go get` / `go mod tidy`), and
+  only when adding or removing a dependency.
+- **Secrets** `.env` files are off-limits; edit `.env.example` instead.
+- **User-owned** `infra/**` (terraform, k8s, docker) and `.github/workflows/**`:
+  the user owns devops/cloud/SRE; change these only when asked.
+- **Contracts** `docs/openapi/*.yaml`, `docs/BUSINESS_RULES.md`: change them
+  together with the code whose behaviour they describe.
+- **Generated** `.expo/`, `.e2e-web/`, `tests/test-results/`, `node_modules/`,
+  `.venv/`, `__pycache__/`: never edit.
+
+## Harness (`.claude/`)
+
+- `settings.json` denies foreign package managers, force-push,
+  `reset --hard`, checking out main/master, deleting branches, `git clean -f`,
+  and edits to lockfiles/`.env`; edits under `infra/` and workflows ask first.
+- `hooks/guard.py` (PreToolUse) blocks the same git commands in any spelling,
+  DDL/DML through `psql`, `migrate force/drop/down`, and edits to migrations
+  already on `origin/main`. A block message names the safe route: take it.
+- `hooks/stop_verify.py` (Stop) lints and unit-tests every module touched this
+  turn (Go: build, vet, golangci-lint, `go test` on touched packages;
+  mobile-app: eslint, prettier, `jest --findRelatedTests`; Python: compile +
+  related `*_test.py`). On failure it sends you back once with the output:
+  fix the cause and re-run the failing command.
 
 ## Architecture
 
-SettleGuard is event-driven: each service owns its own data and schema, with
-no cross-service direct database access. Services communicate by publishing
-and consuming events over a broker rather than calling each other
-synchronously. Broker: **NATS JetStream** (decided 2026-08-10 — durability
-+ per-subject ordering for ledger correctness, replay for risk-model
-re-runs/audits, independent consumer groups, lighter ops than Kafka,
-pure-Go client). `ledger-service` publishes `ledger.entry-recorded` via a
-transactional outbox pattern; `accounts-service` consumes it to maintain
-`Account.balance` (`Σcredit − Σdebit`), idempotent via a processed-transaction
-dedup table, and itself publishes `account.updated` (same outbox pattern,
-own `ACCOUNTS_EVENTS` stream) on every account mutation. `settlement-engine`
-also consumes `ledger.entry-recorded` (durable consumer
-`settlement-engine-risk-scoring`), running rule-based risk scoring and
-publishing `transaction.risk-scored` and `settlement.finalized` via its own
-outbox pattern (`SETTLEMENT_EVENTS` stream). No consumer of `account.updated`
-exists yet.
+Event-driven over **NATS JetStream**: each service owns its data and schema
+(one Postgres per service, no cross-service DB access) and publishes through
+a transactional outbox.
 
-- **`services/accounts-service`** (Go, Postgres) — owns party/account
-  identity, balances-of-obligation, and account status. Publishes
-  `account.updated`.
-- **`services/ledger-service`** (Go, Postgres) — append-only source of truth
-  for every obligation entry (double-entry style). Publishes
+- **ledger-service** — append-only, double-entry source of truth; publishes
   `ledger.entry-recorded`.
-- **`services/settlement-engine`** (Go) — the core orchestrator. Consumes
-  ledger events, runs real-time rule + ML risk scoring per transaction
-  (publishing `transaction.risk-scored`), and on a schedule batches all
-  risk-cleared entries into a settlement (publishing `settlement.finalized`
-  or `settlement.held-for-review`).
-- **`services/notification-service`** (Python) — subscribes to risk-hold and
-  settlement-finalized events; sends push/email alerts. Never called
-  synchronously by other services.
-- **`mobile-app`** (React Native) — read-oriented client for
-  accounts/ledger/settlement-engine, receives push notifications from
-  notification-service. Never a source of truth for domain data.
+- **accounts-service** — identity, status, `Account.balance` (Σcredit −
+  Σdebit) from ledger events, idempotent via a processed-transaction table;
+  publishes `account.updated` (`ACCOUNTS_EVENTS`; no consumer yet).
+- **settlement-engine** — consumes ledger events (durable
+  `settlement-engine-risk-scoring`), scores risk per transaction, batches
+  cleared ones on a schedule; publishes `transaction.risk-scored`,
+  `settlement.finalized` (`SETTLEMENT_EVENTS`).
+- **notification-service** (Python) — consumes risk-hold/settlement events;
+  never called synchronously.
+- **gateway** — reverse proxy in front of the four: CORS, API-key auth, rate
+  limits, request ids. Keys come from `cmd/adminctl`.
+- **mobile-app** — read-oriented client with approve/reject on held
+  transactions; never a source of truth.
 
-Auth: **API key for client businesses, JWT for mobile/ops users, both
-verified at a gateway** (decided 2026-09-09; the API-key half is
-implemented in services/gateway, the JWT half is not). The two
-caller classes are genuinely different: a client business integrates
-server-to-server and gets a hashed API key stored against its
-`ClientBusiness` row, while a human on `mobile-app` needs a login session,
-so a short-lived JWT. A single shared API key was rejected because a key
-shipped inside a mobile bundle is extractable, and because approve/reject
-on a held transaction is a human decision that must be attributable to a
-person — one shared key erases that audit trail. Verification belongs at
-the gateway (now built in `services/gateway`) so the four backend services stay
-unchanged and auth is implemented once rather than four times across three
-separate Go modules and one Python service.
+Auth (decided 2026-09-09): API key for client businesses + JWT for human
+users, both verified at the gateway; only the API-key half exists. The
+backend ports 8080–8083 have no auth of their own, so direct calls bypass it
+(AUTH-01..03). Authentication is not authorization: no service checks which
+accounts a key may touch, and `GET /notifications` returns every client's
+rows. Ownership enforcement is unbuilt: gateway design spec §10.1, §11.
 
-Until the gateway is deployed in front of them, **the four backend
-services themselves have no authentication** — `POST /transactions` and
-every other endpoint are open on ports 8080–8083. The gateway closes this
-only for traffic that actually goes through it: `AUTH-01`–`AUTH-03` in
-`docs/BUSINESS_RULES.md` state what it guarantees and say plainly that the
-direct ports bypass all of it, and all five `docs/openapi/*.yaml` (the four
-services plus `gateway.yaml`) now carry `securitySchemes`.
+## Stack conventions
 
-The larger remaining gap is that **authentication is not authorization**: a
-valid key identifies the calling client business, but no service checks
-which accounts that client may touch, so any valid key can post entries
-against any account and `GET /notifications` returns every client's rows.
-Ownership enforcement is an unbuilt spec, sequenced after CI —
-`docs/superpowers/specs/2026-09-10-gateway-design.md` §10.1 and §11.
+- Go: `net/http` + `chi`; `golang-migrate` with plain `.sql` (no sqlc);
+  real Postgres/NATS in tests via `testcontainers-go` (no sqlmock, no broker
+  mock); layout `cmd/server/main.go` + `internal/{api,db,<domain>}`; module
+  path `github.com/phuoctmse/settleguard/<service>`.
+- Python: pytest everywhere; Appium Python client for mobile E2E (not written yet).
+- AI features need a business reason and must stay a signal layer, never
+  load-bearing for correctness. Justified today: ML scoring alongside rules in
+  settlement-engine; planned `tests/ai-tools` (test generation from OpenAPI,
+  CI-failure triage).
 
-Key domain entities shared across services: Account, LedgerEntry,
-Transaction, RiskScore, Settlement (batch), Alert/Notification.
+## Git workflow
 
-## Testing Layout
-
-- **`tests/api`** (Python) — cross-service API/contract tests, run against
-  each service's OpenAPI spec once written.
-- **`tests/security`** — fraud-bypass attempts, auth boundary checks.
-- **`tests/perf`** — load/perf tests for settlement-engine's real-time
-  scoring path and batch settlement throughput.
-- **`tests/ai-tools`** (Python) — AI-assisted test generation and CI-failure
-  triage tooling — distinct from the risk-scoring ML model itself, which
-  lives inside settlement-engine.
-- Mobile E2E tests use Appium via its Python client against `mobile-app`.
-
-## Infra
-
-- **`infra/k8s`** — Kubernetes manifests for deploying each service.
-- **`infra/terraform`** — cloud infrastructure provisioning.
-
-## Stack
- 
-- **Go** (accounts-service, ledger-service, settlement-engine):
-  - `net/http` + `chi` router — no heavier framework (Gin, etc.)
-  - `golang-migrate` for schema migrations — plain `.sql` files, no
-    code-gen tooling (e.g. no sqlc)
-  - `testcontainers-go` for DB tests — real Postgres in tests, no
-    `sqlmock`/mocked driver
-  - `nats.go` (`jetstream` subpackage) for NATS JetStream event
-    publishing/consuming — real JetStream in tests via
-    `testcontainers-go/modules/nats`, no broker mock
-  - Standard layout per service: `cmd/server/main.go` (entrypoint) +
-    `internal/{api,db,<domain>}/` (unimportable from outside the module)
-  - Module path: `github.com/phuoctmse/settleguard/<service-name>`
-- **Python** (notification-service, all of `tests/`, AI tooling):
-  - pytest for test suites
-  - Appium (`Appium-Python-Client`) for mobile E2E against `mobile-app`
-- **Postgres** — one instance/schema per service that needs persistence
-  (ledger-service, accounts-service at minimum). No shared schema.
-## AI Usage — Justification Required
- 
-Every AI-driven feature in this project must have a concrete business
-reason, not just be added to demonstrate the skill. Before adding one, be
-able to answer: "if this were removed, would the system still work
-correctly, just with less signal?" If AI is load-bearing for correctness
-(vs. a signal/convenience layer), reconsider the design.
- 
-Current justified uses:
-- **In-product**: rule-based checks (velocity limits, mismatch thresholds,
-  blocklists) combined with ML risk scoring inside settlement-engine,
-  gating transactions in real time.
-- **Tooling** (`tests/ai-tools`): generating test cases from each service's
-  OpenAPI spec, and triaging CI failures (flaky vs. real regression vs.
-  environment issue). Kept separate from the in-product risk-scoring model.
-
-## Working Style
-
-Ownership split (as of 2026-08-10): the user owns devops/cloud/SRE
-(`infra/terraform`, `infra/k8s`, cloud deployment, production monitoring/
-observability) themselves — do not plan or build those without being
-asked. For "develop" work (application code in `services/*`, `mobile-app`,
-`tests/*`), Claude codes autonomously: explain key design decisions before
-implementing (why, not just how — e.g. explain the isolation level needed
-for a double-entry transaction before writing the query), then write the
-code directly into files, run tests, and report results for review. This
-supersedes the earlier mentor-mode convention (user typing all code by
-hand) — that history is why some existing code/commits look hand-typed.
-
-- Plan documents (from the writing-plans skill) may contain illustrative
-  code to make the plan concrete — treat that as the actual reference
-  implementation to build from, not just an example to explain and discard.
-- Simplicity over cleverness — avoid unnecessary abstraction layers,
-  interfaces, or generics until there's a concrete second use case that
-  needs them.
-- Commit after each small complete step; `/clear` between unrelated
-  services/modules to avoid context rot.
-
-## Git Workflow
-
-One branch per service or major repo-level step, merged to `main` once that
-branch's tests pass (or, for scaffolding-only branches with no tests, once
-reviewed and functional):
-
-- Naming: `service/<name>` for a whole service (e.g. `service/ledger-service`),
-  `step/<short-description>` for repo-level steps (e.g. `step/repo-scaffolding`)
-- Every commit lands on the branch matching its scope — don't commit
-  cross-scope work (e.g. a different service, or a repo-level doc change)
-  onto a branch it doesn't belong to
-- Work happens on the branch; commit freely as you go (small/messy commits —
-  typos, retries, WIP — are fine, squash merge cleans it up later)
-- Merge to `main` via **squash merge**, not a merge commit — this collapses
-  the branch's messy commit history into one clean commit per service/step
-  on `main`
-- **Keep the branch after merge — never delete it** (as of 2026-08-10, this
-  reverses the earlier "delete after merge" convention)
-- `main` should always be in a working state — nothing half-finished merged in
+- One branch per service (`service/<name>`) or repo-level step
+  (`step/<desc>`). Every commit lands on the branch matching its scope.
+- Start from fresh main: `git fetch && git switch -c <branch> origin/main`
+  (local `main` lags the remote).
+- Commit after each small complete step; messy WIP commits are fine.
+- Merge to `main` by **squash merge** once the branch's tests pass; `main` is
+  always working. **Keep every branch after merge.**
+- Plan documents' illustrative code is the reference implementation to build from.
