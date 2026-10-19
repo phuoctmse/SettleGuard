@@ -62,6 +62,12 @@ info:
     identity.
 
 
+    Every response carries `X-Content-Type-Options: nosniff` and
+    `Cross-Origin-Resource-Policy: same-origin`, and an upstream's `Server`
+    header is removed, so no response names a service's software or
+    version.
+
+
     ## Rate limits
 
 
@@ -76,7 +82,7 @@ info:
     ## Errors the gateway originates
 
 
-    These five never reach a service and are the gateway's own answer. Every
+    These six never reach a service and are the gateway's own answer. Every
     one carries the same body as the four services, `{"error": "..."}`, so a
     client needs a single parser. They are defined under
     `components/responses` so that a generated client can share them:
@@ -86,6 +92,7 @@ info:
     | --- | --- | --- |
     | `401` | `Unauthorized` | `unauthorized` |
     | `404` | `NotFound` | `not found` |
+    | `413` | `PayloadTooLarge` | `request body too large` |
     | `429` | `TooManyRequests` | `rate limit exceeded` |
     | `502` | `BadGateway` | `upstream unavailable` |
     | `504` | `GatewayTimeout` | `upstream timeout` |
@@ -150,6 +157,17 @@ components:
             $ref: '#/components/schemas/Error'
           example:
             error: not found
+    PayloadTooLarge:
+      description: >-
+        The request body is over 1 MiB. A declared Content-Length over the
+        cap is refused before any upstream is contacted; a chunked body is
+        cut off once it passes the cap. Checked after authentication.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: request body too large
     TooManyRequests:
       description: The per-IP or per-client rate limit was exceeded.
       content:

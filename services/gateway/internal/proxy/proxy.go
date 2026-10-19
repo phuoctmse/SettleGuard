@@ -25,10 +25,21 @@ func New(upstream *url.URL, responseTimeout time.Duration) http.Handler {
 	transport.ResponseHeaderTimeout = responseTimeout
 	rp.Transport = transport
 
+	// The Server header names an upstream's software and version (SG-PT-09).
+	rp.ModifyResponse = func(resp *http.Response) error {
+		resp.Header.Del("Server")
+		return nil
+	}
+
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		status, message := http.StatusBadGateway, "upstream unavailable"
 		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
+		var tooLarge *http.MaxBytesError
+		switch {
+		case errors.As(err, &tooLarge):
+			// The caller's body overran the gateway's cap mid-stream (SG-PT-08).
+			status, message = http.StatusRequestEntityTooLarge, "request body too large"
+		case errors.As(err, &netErr) && netErr.Timeout():
 			status, message = http.StatusGatewayTimeout, "upstream timeout"
 		}
 		httperror.Write(w, status, message)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,6 +144,32 @@ func TestRouter_ProtectedPrefixWithoutKeyIs401(t *testing.T) {
 		rec := f.do(http.MethodGet, p, nil)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code, p)
 	}
+}
+
+// SG-PT-09 at the router level: the headers are on proxied responses and on
+// the gateway's own errors alike.
+func TestRouter_SecurityHeadersOnProxiedAndGatewayResponses(t *testing.T) {
+	f := newRouterFixture(t, nil)
+	for _, rec := range []*httptest.ResponseRecorder{
+		f.do(http.MethodGet, "/ledger/transactions", withKey(f.rawKey)),
+		f.do(http.MethodGet, "/ledger/transactions", nil),
+	} {
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"), "status %d", rec.Code)
+		assert.Equal(t, "same-origin", rec.Header().Get("Cross-Origin-Resource-Policy"), "status %d", rec.Code)
+	}
+}
+
+// SG-PT-08 at the router level: an authenticated oversized body never
+// reaches the upstream.
+func TestRouter_OversizedBodyIs413(t *testing.T) {
+	f := newRouterFixture(t, nil)
+	req := httptest.NewRequest(http.MethodPost, "/accounts/clients", strings.NewReader(strings.Repeat("x", api.MaxRequestBodyBytes+1)))
+	req.Header.Set("Authorization", "Bearer "+f.rawKey)
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+	assert.JSONEq(t, `{"error":"request body too large"}`, rec.Body.String())
 }
 
 func TestRouter_UnknownPrefixIs404JSON(t *testing.T) {
