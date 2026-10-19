@@ -4,6 +4,8 @@ import urllib.request
 import uuid
 from unittest.mock import MagicMock
 
+import pytest
+
 from internal.api.health import create_server
 
 
@@ -65,6 +67,42 @@ def test_notifications_endpoint_passes_query_params_to_repo():
         port = server.server_address[1]
         urllib.request.urlopen(f"http://127.0.0.1:{port}/notifications?type=risk_hold&limit=10")
         repo.list.assert_called_once_with(type_="risk_hold", since=None, limit=10)
+    finally:
+        server.shutdown()
+        thread.join()
+
+
+@pytest.mark.parametrize("limit", ["-1", "0"])
+def test_notifications_endpoint_rejects_limit_below_one(limit):
+    # SG-PT-07: a negative limit used to reach Postgres and take /notifications down.
+    repo = MagicMock()
+    server = create_server("127.0.0.1", 0, repo)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/notifications?limit={limit}")
+            assert False, "expected HTTPError"
+        except urllib.error.HTTPError as e:
+            assert e.code == 400
+            assert json.loads(e.read()) == {"error": "invalid limit"}
+        repo.list.assert_not_called()
+    finally:
+        server.shutdown()
+        thread.join()
+
+
+def test_notifications_endpoint_clamps_limit_to_max():
+    repo = MagicMock()
+    repo.list.return_value = []
+    server = create_server("127.0.0.1", 0, repo)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/notifications?limit=500")
+        repo.list.assert_called_once_with(type_=None, since=None, limit=200)
     finally:
         server.shutdown()
         thread.join()

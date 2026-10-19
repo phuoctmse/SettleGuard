@@ -70,6 +70,23 @@ def test_record_rolls_back_on_error_so_connection_stays_usable():
         conn.close()
 
 
+def test_list_rolls_back_on_error_so_connection_stays_usable():
+    # SG-PT-07: one failed SELECT used to leave the shared connection in an
+    # aborted transaction, so every later list() failed until a restart.
+    with PostgresContainer("postgres:18-alpine") as postgres:
+        dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
+        migrate(dsn)
+        repo, conn = _repo(dsn)
+        repo.record("risk_hold", uuid.uuid4(), {"decision": "hold"})
+
+        # Postgres rejects a negative LIMIT, aborting the transaction.
+        with pytest.raises(Exception):
+            repo.list(limit=-1)
+
+        assert len(repo.list()) == 1
+        conn.close()
+
+
 def test_list_returns_most_recent_first():
     with PostgresContainer("postgres:18-alpine") as postgres:
         dsn = postgres.get_connection_url(driver=None) + "?sslmode=disable"
