@@ -6,8 +6,11 @@ from playwright.sync_api import Browser, expect
 from clients.gateway_admin import revoke_key
 
 
-def test_revoked_key_shows_the_error_state(browser: Browser, web_app_url, api_key_factory):
+def test_revoked_key_shows_the_error_state(browser: Browser, web_app_url, api_key_factory, accounts):
     key = api_key_factory()
+    # Seed one account (direct port, setup only) so "no rows" means the data
+    # exists but is withheld, not that there was nothing to show.
+    accounts.create_account(key.client_id).raise_for_status()
     revoke_key(key.key_id)
     context = browser.new_context(
         base_url=web_app_url,

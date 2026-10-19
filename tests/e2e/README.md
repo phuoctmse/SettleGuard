@@ -19,7 +19,11 @@ Bộ E2E bằng Python Playwright chạy trên **bản web build** của `mobile
 
 Cần stack như `tests/README.md` (4 service, NATS, Postgres) và gateway `:8000`
 khởi động với `CORS_ALLOWED_ORIGINS=http://localhost:8090` — để trống thì
-gateway chặn mọi origin và mọi test sẽ thấy trạng thái lỗi.
+gateway chặn mọi origin và mọi test sẽ thấy trạng thái lỗi. Hãy khởi động
+gateway `:8000` bằng đúng lệnh trong `tests/security/README.md` (có
+`RATE_LIMIT_IP_PER_MINUTE=100000 RATE_LIMIT_CLIENT_PER_MINUTE=100000`, giống
+CI): giới hạn mặc định 60 req/phút/IP sẽ trả 429 và bị hiển thị thành trạng
+thái lỗi.
 
     pip install -r tests/requirements.txt
     python -m playwright install chromium
