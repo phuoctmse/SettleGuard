@@ -59,8 +59,9 @@ Xem trace: `python -m playwright show-trace test-results/<tên test>/trace.zip`.
 - Danh sách Held và Settlements phân trang (mới nhất trước, 50 dòng/trang);
   test chỉ tìm ở trang đầu, nên đừng chạy song song nhiều suite ghi dữ liệu
   cùng lúc.
-- `/notifications` không trả lời → có thể test `destructive` của
-  `tests/security` (SG-PT-07) vừa chạy; khởi động lại notification-service.
+- `/notifications` không trả lời → nếu SG-PT-07 tái phát, test `destructive`
+  của `tests/security` vừa chạy có thể làm hỏng nó; khởi động lại
+  notification-service.
 
 ## CI
 

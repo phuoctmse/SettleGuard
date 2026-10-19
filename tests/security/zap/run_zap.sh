@@ -30,7 +30,7 @@ raw_key=$(cd "$ROOT/services/gateway" && DATABASE_URL="$GATEWAY_DATABASE_URL" "$
 
 python "$ZAP_DIR/prepare_specs.py" "$ZAP_GATEWAY_URL" "$OUT"
 
-# notification-service stays LAST: SG-PT-07 can leave it unable to serve /notifications.
+# notification-service stays LAST: a regression of SG-PT-07 (fixed) would leave it unable to serve /notifications.
 for spec in ledger-service accounts-service settlement-engine notification-service; do
   echo "::group::ZAP $spec"
   # -I: rule-level WARNs never fail the run; check_report.py decides by risk.
